@@ -48,7 +48,7 @@ AI is used in three targeted areas where current vision and language models perf
 # 5\. Technology Stack
 
 - **Frontend:** Next.js (React) - server-rendered, mobile-first, SEO-friendly.
-- **Backend:** Node.js with REST API endpoints.
+- **Backend:** Next.js (full-stack) with API routes (no separate Node.js service).
 - **Data layer:** PostgreSQL for structured submission data; AWS S3 (or equivalent) for media storage.
 - **AI services:** OpenAI / Anthropic models for room detection, summary generation, and chatbot.
 - **External APIs:** Google Places API for address autocomplete; public listing data sources for property auto-fill.
