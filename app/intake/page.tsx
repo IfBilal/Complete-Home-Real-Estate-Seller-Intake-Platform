@@ -318,49 +318,61 @@ export default function IntakePage() {
   };
 
   return (
-    <main className="container section">
-      <div className="intake-header">
-        <h1>Seller Intake</h1>
-        <p>
-          A refined, step-by-step intake designed for clarity and comfort.
-        </p>
-      </div>
-
-      <div className="stepper">
-        <div className="stepper-bar">
-          <div className="stepper-fill" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="stepper-steps">
-          {steps.map((step, index) => {
-            const isActive = index === currentStep;
-            const isComplete = index < currentStep;
-
-            return (
-              <div className="step" key={step}>
-                <span
-                  className={`step-indicator${
-                    isActive ? " active" : isComplete ? " complete" : ""
-                  }`}
-                >
-                  {index + 1}
-                </span>
-                <span className={`step-label${isActive ? " active" : ""}`}>
-                  {step}
-                </span>
+    <main className="intake-shell">
+      <section className="intake-hero">
+        <div className="container intake-hero-inner">
+          <div className="intake-hero-text">
+            <div className="hero-pill">Private Seller Intake · Concierge Guided</div>
+            <h1>Seller Intake</h1>
+            <p>
+              A refined, step-by-step intake designed for clarity, speed, and
+              premium review.
+            </p>
+          </div>
+          <div className="intake-progress">
+            <div className="stepper">
+              <div className="stepper-bar">
+                <div className="stepper-fill" style={{ width: `${progress}%` }} />
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <div className="stepper-steps">
+                {steps.map((step, index) => {
+                  const isActive = index === currentStep;
+                  const isComplete = index < currentStep;
 
-      <div className="intake-card">
-        <div className="intake-step-header">
-          <h2>{steps[currentStep]}</h2>
-          <span className="intake-step-count">
-            Step {currentStep + 1} of {steps.length}
-          </span>
+                  return (
+                    <div className="step" key={step}>
+                      <span
+                        className={`step-indicator${
+                          isActive ? " active" : isComplete ? " complete" : ""
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <span className={`step-label${isActive ? " active" : ""}`}>
+                        {step}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="intake-step-body">
+      </section>
+
+      <section className="intake-body">
+        <div className="container">
+          <div className="intake-card intake-panel">
+            <div className="intake-step-header">
+              <div>
+                <h2>{steps[currentStep]}</h2>
+                <p className="intake-step-help">Complete each section to continue.</p>
+              </div>
+              <span className="intake-step-count">
+                Step {currentStep + 1} of {steps.length}
+              </span>
+            </div>
+            <div className="intake-step-body">
           {currentStep === 0 && (
             <div className="address-step">
               <div className="address-card">
@@ -864,46 +876,48 @@ export default function IntakePage() {
               </button>
             </div>
           )}
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {currentStep < steps.length - 1 && (
-        <div className="intake-nav desktop">
-        <button
-          className="button-secondary"
-          onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
-          disabled={currentStep === 0}
-        >
-          Back
-        </button>
-        <button
-          className="button-primary"
-          onClick={handleContinue}
-          disabled={currentStep === steps.length - 1}
-        >
-          Continue
-        </button>
-        </div>
-      )}
+          {currentStep < steps.length - 1 && (
+            <div className="intake-nav desktop">
+              <button
+                className="button-secondary"
+                onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
+                disabled={currentStep === 0}
+              >
+                Back
+              </button>
+              <button
+                className="button-primary"
+                onClick={handleContinue}
+                disabled={currentStep === steps.length - 1}
+              >
+                Continue
+              </button>
+            </div>
+          )}
 
-      {currentStep < steps.length - 1 && (
-        <div className="intake-nav mobile">
-        <button
-          className="button-secondary"
-          onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
-          disabled={currentStep === 0}
-        >
-          Back
-        </button>
-        <button
-          className="button-primary"
-          onClick={handleContinue}
-          disabled={currentStep === steps.length - 1}
-        >
-          Continue
-        </button>
+          {currentStep < steps.length - 1 && (
+            <div className="intake-nav mobile">
+              <button
+                className="button-secondary"
+                onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
+                disabled={currentStep === 0}
+              >
+                Back
+              </button>
+              <button
+                className="button-primary"
+                onClick={handleContinue}
+                disabled={currentStep === steps.length - 1}
+              >
+                Continue
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </section>
 
       {showSuccess && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">

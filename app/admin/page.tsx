@@ -85,45 +85,57 @@ export default function AdminPage() {
 
   return (
     <main className="container section">
-      <div className="admin-header">
-        <h1>Admin Dashboard</h1>
-        <p>Review submissions, assess quality, and guide next steps.</p>
+      <div className="admin-header premium">
+        <div>
+          <p className="admin-eyebrow">Internal Review Workspace</p>
+          <h1>Admin Dashboard</h1>
+          <p>Review submissions, assess quality, and guide next steps.</p>
+        </div>
+        <div className="admin-header-meta">
+          <div>
+            <span>Active pipeline</span>
+            <strong>{records.length} submissions</strong>
+          </div>
+          <div>
+            <span>Avg response</span>
+            <strong>48 hrs</strong>
+          </div>
+        </div>
       </div>
 
       <div className="admin-grid">
-        <section className="admin-list">
-          <h2>Submissions</h2>
-          <div className="admin-filters">
-            <input
-              className="text-input"
-              type="text"
-              placeholder="Search by name or address"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            <select
-              className="text-input"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-            >
-              <option>All</option>
-              <option>New</option>
-              <option>Reviewing</option>
-              <option>Offer Made</option>
-              <option>Closed</option>
-            </select>
-          </div>
-          <div className="admin-table">
-            <div className="admin-row admin-row-header">
-              <span>Seller</span>
-              <span>Property</span>
-              <span>Date</span>
-              <span>Status</span>
+        <section className="admin-list premium">
+          <div className="admin-list-header">
+            <div>
+              <h2>Submissions</h2>
+              <p>Prioritize the most recent seller intakes.</p>
             </div>
+            <div className="admin-filters">
+              <input
+                className="text-input"
+                type="text"
+                placeholder="Search by name or address"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+              <select
+                className="text-input"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+              >
+                <option>All</option>
+                <option>New</option>
+                <option>Reviewing</option>
+                <option>Offer Made</option>
+                <option>Closed</option>
+              </select>
+            </div>
+          </div>
+          <div className="admin-records">
             {filteredRecords.map((submission) => (
               <button
                 type="button"
-                className={`admin-row${submission.id === selectedId ? " active" : ""}`}
+                className={`admin-record${submission.id === selectedId ? " active" : ""}`}
                 key={submission.id}
                 onClick={() => setSelectedId(submission.id)}
               >
@@ -131,8 +143,8 @@ export default function AdminPage() {
                   <strong>{submission.name}</strong>
                   <span className="admin-id">{submission.id}</span>
                 </div>
-                <span>{submission.address}</span>
-                <span>{submission.date}</span>
+                <span className="admin-address">{submission.address}</span>
+                <span className="admin-date">{submission.date}</span>
                 <span className={`status-pill ${submission.status.toLowerCase().replace(" ", "-")}`}>
                   {submission.status}
                 </span>
@@ -141,8 +153,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="admin-detail">
-          <h2>Submission Detail</h2>
+        <section className="admin-detail premium">
           <div className="detail-card">
             <div className="detail-header">
               <div>
@@ -191,57 +202,38 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="detail-section">
-              <h4>AI Summary (Preview)</h4>
+              <div className="ai-header">
+                <h4>AI Summary (Preview)</h4>
+                <span className="ai-badge">Generated</span>
+              </div>
               <p>
                 Bright living areas, updated kitchen surfaces, and minimal
                 exterior wear noted. Minor paint touch-ups recommended.
               </p>
               <div className="ai-flags">
                 <span>Minor paint wear</span>
-                <span>Older fixtures in bath 2</span>
-              </div>
-            </div>
-            <div className="detail-section">
-              <h4>Room Detection Summary</h4>
-              <div className="flag-list">
-                <span className="flag">All uploads matched expected rooms</span>
-                <span className="flag">Seller corrected flagged items during upload</span>
-              </div>
-            </div>
-            <div className="detail-section">
-              <h4>Notifications Sent</h4>
-              <div className="timeline">
-                <div>
-                  <span>Email sent to seller@example.com</span>
-                  <strong>2 min ago</strong>
-                </div>
-                <div>
-                  <span>SMS sent to (555) 018‑7234</span>
-                  <strong>2 min ago</strong>
-                </div>
+                <span>Tile grout refresh</span>
               </div>
             </div>
             <div className="detail-section">
               <h4>Internal Notes</h4>
               <textarea
                 className="text-input"
-                placeholder="Add a note..."
+                placeholder="Add your internal notes"
                 value={noteText}
-                onChange={(event) => {
-                  setNoteText(event.target.value);
-                  setNoteSaved(false);
-                }}
+                onChange={(event) => setNoteText(event.target.value)}
               />
               <button
-                className="button-primary"
                 type="button"
-                onClick={() => setNoteSaved(true)}
+                className="button-primary"
+                onClick={() => {
+                  setNoteSaved(true);
+                  setTimeout(() => setNoteSaved(false), 2000);
+                }}
               >
-                Save Note
+                Save Notes
               </button>
-              {noteSaved && (
-                <p className="note-saved">Saved.</p>
-              )}
+              {noteSaved && <span className="note-saved">Saved!</span>}
             </div>
           </div>
         </section>

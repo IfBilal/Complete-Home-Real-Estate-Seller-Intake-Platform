@@ -5,10 +5,12 @@ export default function Home() {
         <div className="hero-overlay" />
         <div className="container hero-content">
           <div className="hero-text">
-            <p className="hero-eyebrow">Private Seller Intake</p>
-            <h1>Premium intake that feels effortless.</h1>
+            <div className="hero-pill">Private Seller Intake · Concierge Guided</div>
+            <h1>
+              Navigate your <span>seller journey</span> with precision.
+            </h1>
             <p className="hero-subtext">
-              A refined, mobile-first intake flow for homeowners who want a
+              A premium, mobile-first intake flow for homeowners who want a
               faster, more transparent path to a serious review.
             </p>
             <div className="hero-actions">
@@ -19,10 +21,9 @@ export default function Home() {
                 See How It Works
               </a>
             </div>
-            <div className="hero-badges">
-              <span>Concierge-guided</span>
-              <span>Secure uploads</span>
-              <span>No obligation</span>
+            <div className="hero-trust">
+              <div className="hero-stars">★★★★★</div>
+              <span>Trusted by 200+ homeowners nationwide</span>
             </div>
           </div>
           <div className="hero-card">
@@ -40,6 +41,60 @@ export default function Home() {
               <p className="hero-card-note">
                 Resume anytime from any device.
               </p>
+            </div>
+          </div>
+        </div>
+        <div className="container hero-metrics">
+          <div className="metric-card">
+            <span className="metric-icon">⏱</span>
+            <div>
+              <strong>48 hrs</strong>
+              <span>Avg review time</span>
+            </div>
+          </div>
+          <div className="metric-card">
+            <span className="metric-icon">🔒</span>
+            <div>
+              <strong>Private</strong>
+              <span>Secure uploads</span>
+            </div>
+          </div>
+          <div className="metric-card">
+            <span className="metric-icon">✓</span>
+            <div>
+              <strong>No obligation</strong>
+              <span>Transparent review</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section section-alt">
+        <div className="container">
+          <div className="section-header">
+            <h2>By the numbers</h2>
+            <p>Trusted volume and speed across every intake review.</p>
+          </div>
+          <div className="metrics-grid">
+            <div className="metrics-card">
+              <span className="metrics-icon">📈</span>
+              <h3>470+</h3>
+              <p>Successful reviews</p>
+            </div>
+            <div className="metrics-card">
+              <span className="metrics-icon">👥</span>
+              <h3>63</h3>
+              <p>Advisor team members</p>
+            </div>
+            <div className="metrics-card">
+              <span className="metrics-icon">🏡</span>
+              <h3>266+</h3>
+              <p>Seller submissions</p>
+            </div>
+            <div className="metrics-card">
+              <span className="metrics-icon">⭐</span>
+              <h3>213+</h3>
+              <p>5‑star owner ratings</p>
             </div>
           </div>
         </div>
@@ -133,6 +188,18 @@ export default function Home() {
               </p>
             </details>
           </div>
+        </div>
+      </section>
+
+      <section className="cta-band">
+        <div className="container cta-band-inner">
+          <div>
+            <h2>Ready for a premium intake experience?</h2>
+            <p>Start your seller intake in minutes and stay in control.</p>
+          </div>
+          <a className="button-primary" href="/intake">
+            Start Seller Intake
+          </a>
         </div>
       </section>
     </main>
