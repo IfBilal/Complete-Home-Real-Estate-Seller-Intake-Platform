@@ -321,7 +321,7 @@ export default function IntakePage() {
     <main className="intake-shell">
       <section className="intake-hero">
         <div className="container intake-hero-inner">
-          <div className="intake-hero-text">
+          <div className="intake-hero-text reveal">
             <div className="hero-pill">Private Seller Intake · Concierge Guided</div>
             <h1>Seller Intake</h1>
             <p>
@@ -329,7 +329,7 @@ export default function IntakePage() {
               premium review.
             </p>
           </div>
-          <div className="intake-progress">
+          <div className="intake-progress reveal" style={{ "--delay": "120ms" } as React.CSSProperties}>
             <div className="stepper">
               <div className="stepper-bar">
                 <div className="stepper-fill" style={{ width: `${progress}%` }} />
@@ -362,7 +362,7 @@ export default function IntakePage() {
 
       <section className="intake-body">
         <div className="container">
-          <div className="intake-card intake-panel">
+          <div className="intake-card intake-panel reveal">
             <div className="intake-step-header">
               <div>
                 <h2>{steps[currentStep]}</h2>

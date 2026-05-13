@@ -14,6 +14,10 @@ export default function Footer() {
             A premium seller intake experience that keeps the process simple
             and transparent.
           </p>
+          <div className="footer-contact">
+            <span>Call: (678) 815-9233</span>
+            <span>Email: support@sellerintake.com</span>
+          </div>
           <div style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
             <a href="/privacy">Privacy</a>
             <a href="/intake">Seller Intake</a>

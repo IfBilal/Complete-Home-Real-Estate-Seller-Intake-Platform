@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function Header() {
@@ -6,12 +7,10 @@ export default function Header() {
       <div className="utility-bar">
         <div className="container utility-bar-inner">
           <div className="utility-bar-links">
-            <span>Call us: (678) 815-9233</span>
-            <span>Email: support@sellerintake.com</span>
+            <span>Private seller intake · Concierge-guided review</span>
+            <span>Secure uploads · 48 hr response</span>
           </div>
-          <Link className="utility-bar-cta" href="/intake">
-            Enquiry Form — Share Your Project
-          </Link>
+          <span className="utility-bar-cta">Trusted by 200+ homeowners</span>
         </div>
       </div>
       <div className="header">
@@ -19,18 +18,20 @@ export default function Header() {
           <Link
             href="/"
             aria-label="Home"
-            style={{ display: "flex", gap: "10px", alignItems: "center" }}
+            className="brand"
           >
-            <span
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "999px",
-                background: "#2563EB",
-                display: "inline-block"
-              }}
+            <Image
+              src="/logo.jpeg"
+              alt="Seller Intake"
+              className="brand-logo"
+              width={44}
+              height={44}
+              priority
             />
-            <strong>Seller Intake</strong>
+            <div className="brand-text">
+              <strong>Seller Intake</strong>
+              <span>Real Estate Review</span>
+            </div>
           </Link>
           <nav className="nav-links" aria-label="Primary">
             <Link href="/#how-it-works">How it works</Link>

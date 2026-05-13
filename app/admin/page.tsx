@@ -85,7 +85,7 @@ export default function AdminPage() {
 
   return (
     <main className="container section">
-      <div className="admin-header premium">
+      <div className="admin-header premium reveal-once" style={{ "--delay": "60ms" } as React.CSSProperties}>
         <div>
           <p className="admin-eyebrow">Internal Review Workspace</p>
           <h1>Admin Dashboard</h1>
@@ -104,7 +104,7 @@ export default function AdminPage() {
       </div>
 
       <div className="admin-grid">
-        <section className="admin-list premium">
+        <section className="admin-list premium reveal-once" style={{ "--delay": "140ms" } as React.CSSProperties}>
           <div className="admin-list-header">
             <div>
               <h2>Submissions</h2>
@@ -153,7 +153,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="admin-detail premium">
+        <section className="admin-detail premium reveal-once" style={{ "--delay": "220ms" } as React.CSSProperties}>
           <div className="detail-card">
             <div className="detail-header">
               <div>

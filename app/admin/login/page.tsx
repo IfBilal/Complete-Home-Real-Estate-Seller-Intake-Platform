@@ -2,10 +2,12 @@
 
 export default function AdminLoginPage() {
   return (
-    <main className="container section">
-      <div className="login-shell">
-        <div className="login-card">
+    <main className="login-page">
+      <div className="login-page-bg" aria-hidden="true" />
+      <div className="container section login-shell">
+        <div className="login-card premium reveal">
           <div className="login-header">
+            <span className="login-pill">Admin portal</span>
             <h1>Admin Sign In</h1>
             <p>Secure access for internal review and workflow management.</p>
           </div>
@@ -47,6 +49,12 @@ export default function AdminLoginPage() {
           <p className="login-note">
             Demo only — authentication is mocked for client preview.
           </p>
+          <div className="login-footer">
+            <span>Need access?</span>
+            <a className="login-link" href="/privacy">
+              Request onboarding
+            </a>
+          </div>
         </div>
       </div>
     </main>
