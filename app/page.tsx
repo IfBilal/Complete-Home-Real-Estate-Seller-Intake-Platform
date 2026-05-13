@@ -10,8 +10,8 @@ export default function Home() {
               Navigate your <span>seller journey</span> with precision.
             </h1>
             <p className="hero-subtext">
-              A premium, mobile-first intake flow for homeowners who want a
-              faster, more transparent path to a serious review.
+              A guided, mobile-first intake for homeowners who want a faster,
+              more transparent path to a serious review.
             </p>
             <div className="hero-actions">
               <a className="button-primary" href="/intake">
@@ -39,7 +39,7 @@ export default function Home() {
                 <div className="hero-card-progress-fill" />
               </div>
               <p className="hero-card-note">
-                Resume anytime from any device.
+                Resume anytime on this device.
               </p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function Home() {
               <li>Streamlined, calm, and straightforward.</li>
               <li>Clear prompts for every space.</li>
               <li>Secure uploads and private review.</li>
-              <li>Resume anytime on any device.</li>
+              <li>Resume anytime on this device.</li>
             </ul>
           </div>
           <div className="benefits-media reveal" style={{ "--delay": "140ms" } as React.CSSProperties}>
@@ -163,15 +163,21 @@ export default function Home() {
             </details>
             <details>
               <summary>Can I save and finish later?</summary>
-              <p>Yes. Your progress is saved locally so you can return anytime.</p>
+              <p>
+                Yes. Your progress is saved locally in your browser so you can
+                return anytime from the same device.
+              </p>
             </details>
             <details>
               <summary>What kind of photos should I upload?</summary>
               <p>Clear, well-lit photos of each room and exterior areas are best.</p>
             </details>
             <details>
-              <summary>Is my information private?</summary>
-              <p>Yes. Submissions are reviewed by the internal team only.</p>
+              <summary>How will I get updates?</summary>
+              <p>
+                We send an optional confirmation email after submission and
+                follow up as your review progresses.
+              </p>
             </details>
           </div>
         </div>

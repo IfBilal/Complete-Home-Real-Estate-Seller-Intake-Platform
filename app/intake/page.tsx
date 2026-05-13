@@ -924,7 +924,10 @@ export default function IntakePage() {
           <div className="success-modal">
             <div className="success-icon">✓</div>
             <h3>Submission received</h3>
-            <p>Thanks! Your intake has been sent for review.</p>
+            <p>
+              Thanks! Your intake has been sent for review. You’ll receive a
+              confirmation email with next steps.
+            </p>
             <button
               className="button-primary"
               type="button"
