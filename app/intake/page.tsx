@@ -880,26 +880,7 @@ export default function IntakePage() {
           </div>
 
           {currentStep < steps.length - 1 && (
-            <div className="intake-nav desktop">
-              <button
-                className="button-secondary"
-                onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
-                disabled={currentStep === 0}
-              >
-                Back
-              </button>
-              <button
-                className="button-primary"
-                onClick={handleContinue}
-                disabled={currentStep === steps.length - 1}
-              >
-                Continue
-              </button>
-            </div>
-          )}
-
-          {currentStep < steps.length - 1 && (
-            <div className="intake-nav mobile">
+            <div className="intake-nav">
               <button
                 className="button-secondary"
                 onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}

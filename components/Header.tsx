@@ -46,8 +46,9 @@ export default function Header() {
             <Link href="/#faq">FAQ</Link>
             <Link href="/privacy">Privacy</Link>
           </nav>
-          <Link href="/intake" className="button-primary">
-            Start Your Review
+          <Link href="/intake" className="button-primary header-cta">
+            <span className="header-cta-full">Start Your Review</span>
+            <span className="header-cta-short">Start</span>
           </Link>
         </div>
       </div>
