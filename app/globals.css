@@ -1462,13 +1462,27 @@ button {
   color: var(--neutral-ink-700);
 }
 
+.segmented-control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .segmented-control {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
+.segmented-custom-input {
+  width: 120px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
 .segmented-control button {
+  flex: 1;
+  min-width: 36px;
   border: 1px solid var(--neutral-line-200);
   border-radius: 999px;
   padding: 8px 0;
@@ -5281,9 +5295,9 @@ button {
     display: none;
   }
 
-  /* segmented control: allow wrapping for many options (e.g. 8 bedrooms) */
+  /* segmented control: tighten gap on smaller screens */
   .segmented-control {
-    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
   }
 
   /* 7.3 Admin */
@@ -5331,9 +5345,9 @@ button {
     font-size: 15px;
   }
 
-  /* segmented control: max 3 per row for very narrow screens */
+  /* segmented control: tighten gap further on very small screens */
   .segmented-control {
-    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
   }
 
   /* admin new count: allow wrap */

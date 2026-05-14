@@ -850,17 +850,37 @@ export default function IntakePage() {
               <div className="form-grid">
                 <div>
                   <label className="input-label">Bedrooms</label>
-                  <div className="segmented-control">
-                    {[1, 2, 3, 4, 5].map((value) => (
+                  <div className="segmented-control-row">
+                    <div className="segmented-control">
+                      {[1, 2, 3, 4, 5, 6, 7].map((value) => (
+                        <button
+                          key={`bed-${value}`}
+                          type="button"
+                          className={bedrooms === value ? "active" : ""}
+                          onClick={() => setBedrooms(value)}
+                        >
+                          {value}
+                        </button>
+                      ))}
                       <button
-                        key={`bed-${value}`}
                         type="button"
-                        className={bedrooms === value ? "active" : ""}
-                        onClick={() => setBedrooms(value)}
+                        className={(bedrooms ?? 0) >= 8 ? "active" : ""}
+                        onClick={() => setBedrooms(8)}
                       >
-                        {value}
+                        8+
                       </button>
-                    ))}
+                    </div>
+                    {(bedrooms ?? 0) >= 8 && (
+                      <input
+                        className="text-input segmented-custom-input"
+                        type="number"
+                        min={8}
+                        max={20}
+                        placeholder="Enter count"
+                        value={bedrooms ?? ""}
+                        onChange={e => setBedrooms(Math.max(8, parseInt(e.target.value) || 8))}
+                      />
+                    )}
                   </div>
                   {propertyErrors.bedrooms && (
                     <p className="field-error">{propertyErrors.bedrooms}</p>
@@ -869,17 +889,37 @@ export default function IntakePage() {
                 </div>
                 <div>
                   <label className="input-label">Bathrooms</label>
-                  <div className="segmented-control">
-                    {[1, 2, 3, 4].map((value) => (
+                  <div className="segmented-control-row">
+                    <div className="segmented-control">
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <button
+                          key={`bath-${value}`}
+                          type="button"
+                          className={bathrooms === value ? "active" : ""}
+                          onClick={() => setBathrooms(value)}
+                        >
+                          {value}
+                        </button>
+                      ))}
                       <button
-                        key={`bath-${value}`}
                         type="button"
-                        className={bathrooms === value ? "active" : ""}
-                        onClick={() => setBathrooms(value)}
+                        className={(bathrooms ?? 0) >= 6 ? "active" : ""}
+                        onClick={() => setBathrooms(6)}
                       >
-                        {value}
+                        6+
                       </button>
-                    ))}
+                    </div>
+                    {(bathrooms ?? 0) >= 6 && (
+                      <input
+                        className="text-input segmented-custom-input"
+                        type="number"
+                        min={6}
+                        max={20}
+                        placeholder="Enter count"
+                        value={bathrooms ?? ""}
+                        onChange={e => setBathrooms(Math.max(6, parseInt(e.target.value) || 6))}
+                      />
+                    )}
                   </div>
                   {propertyErrors.bathrooms && (
                     <p className="field-error">{propertyErrors.bathrooms}</p>
