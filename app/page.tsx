@@ -1,4 +1,5 @@
 import FAQAccordion from "../components/FAQAccordion";
+import HeroResumeCard from "../components/HeroResumeCard";
 
 export default function Home() {
   return (
@@ -30,20 +31,8 @@ export default function Home() {
               <span>Trusted by 470+ homeowners nationwide</span>
             </div>
           </div>
-          <div className="hero-card reveal" style={{ "--delay": "160ms" } as React.CSSProperties}>
-            <div className="hero-card-image" />
-            <div className="hero-card-body">
-              <p className="hero-card-title">Willow Lane Residence</p>
-              <p className="hero-card-meta">Austin, TX · 2,140 sqft</p>
-              <div className="hero-card-row">
-                <span>Intake progress</span>
-                <strong>65%</strong>
-              </div>
-              <div className="hero-card-progress">
-                <div className="hero-card-progress-fill" />
-              </div>
-              <p className="hero-card-note">Resume anytime on this device.</p>
-            </div>
+          <div className="reveal" style={{ "--delay": "160ms" } as React.CSSProperties}>
+            <HeroResumeCard />
           </div>
         </div>
         <div className="container hero-metrics">

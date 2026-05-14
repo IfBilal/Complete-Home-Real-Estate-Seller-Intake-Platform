@@ -1,10 +1,113 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
+import IntakeChatbot from "../../components/IntakeChatbot";
+import { getRoomSignal, getSignalLabel, getOverview, getFlags, getAssessment } from "../../lib/aiSummary";
 
-const steps = ["Address", "Property", "Rooms", "Uploads", "Review"];
+const steps = ["Address", "Property", "Rooms", "Uploads", "Contact", "Review"];
+const SESSION_KEY = "ch_intake_session";
+
+interface UploadItem {
+  id: string;
+  name: string;
+  type: "photo" | "video";
+  preview: string | null;
+  progress: number;
+  status: "compressing" | "uploading" | "ok" | "mismatch";
+}
+
+interface UploadSlotProps {
+  item?: UploadItem;
+  isVideo?: boolean;
+  room: string;
+  otherRooms: string[];
+  onUpload: (file: File) => void;
+  onRemove: (id: string) => void;
+  onResolve: (id: string) => void;
+  onMove: (id: string, toRoom: string) => void;
+}
+
+function UploadSlot({ item, isVideo, room, otherRooms, onUpload, onRemove, onResolve, onMove }: UploadSlotProps) {
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  if (item) {
+    return (
+      <div className="upload-slot-filled">
+        <div
+          className={`upload-preview${item.type === "video" ? " upload-preview-video" : ""}`}
+          style={item.preview ? { backgroundImage: `url(${item.preview})` } : {}}
+        >
+          {item.type === "video" && (
+            <div className="video-info">
+              <span className="video-play-icon">▶</span>
+              <span className="video-filename">{item.name}</span>
+            </div>
+          )}
+          <button type="button" className="upload-remove-btn" onClick={() => onRemove(item.id)}>×</button>
+          <span className={`upload-status-badge status-${item.status}`}>
+            {item.status === "compressing" && "⏳ Compressing"}
+            {item.status === "uploading" && `↑ ${item.progress}%`}
+            {item.status === "ok" && "✓ Matched"}
+            {item.status === "mismatch" && "⚠ Wrong room?"}
+          </span>
+          {item.status === "uploading" && (
+            <div className="upload-progress-track">
+              <div className="upload-progress-fill" style={{ width: `${item.progress}%` }} />
+            </div>
+          )}
+        </div>
+        {item.status === "mismatch" && (
+          <div className="mismatch-panel">
+            <p className="mismatch-label">May not be <strong>{room}</strong>. Move to:</p>
+            <div className="mismatch-rooms">
+              {otherRooms.map(r => (
+                <button key={r} type="button" className="mismatch-room-btn" onClick={() => onMove(item.id, r)}>{r}</button>
+              ))}
+            </div>
+            <button type="button" className="mismatch-keep-btn" onClick={() => onResolve(item.id)}>
+              Keep here — it&apos;s correct
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`upload-slot${isVideo ? " upload-slot-video" : ""}${dragging ? " dragging" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) onUpload(file);
+      }}
+      onClick={() => inputRef.current?.click()}
+    >
+      <div className="upload-empty-inner">
+        <span className="upload-add-icon">{isVideo ? "▶" : "+"}</span>
+        <span className="upload-add-label">{isVideo ? "Add video" : "Drop or click"}</span>
+        {!isVideo && <span className="upload-add-hint">JPG · PNG · HEIC</span>}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={isVideo ? "video/*" : "image/*"}
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) onUpload(file);
+          e.target.value = "";
+        }}
+      />
+    </div>
+  );
+}
 
 const mockProperties = [
   {
@@ -35,6 +138,16 @@ const mockProperties = [
 
 const baseRooms = ["Kitchen", "Living Room", "Exterior", "Garage", "Backyard"];
 
+const PREQUAL_LABELS: Record<string, string> = {
+  ownership: "Ownership",
+  timeline: "Timeline",
+  motivation: "Reason for Selling",
+  mortgage: "Mortgage",
+  liens: "Liens / Judgments",
+  occupancy: "Occupancy",
+  offer_type: "Offer Preference"
+};
+
 const addressSchema = z.object({
   address: z.string().min(5),
   confirmed: z.literal(true)
@@ -56,6 +169,13 @@ const uploadsSchema = z.object({
   totalUploads: z.number().min(1)
 });
 
+const contactSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().min(7)
+});
+
 export default function IntakePage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -65,6 +185,9 @@ export default function IntakePage() {
   >(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [bedrooms, setBedrooms] = useState<number | null>(null);
   const [bathrooms, setBathrooms] = useState<number | null>(null);
   const [yearBuilt, setYearBuilt] = useState("");
@@ -114,6 +237,13 @@ export default function IntakePage() {
   }, [roomOptions]);
   const [activePanel, setActivePanel] = useState("Kitchen");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [prequalAnswers, setPrequalAnswers] = useState<Record<string, string>>({});
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [contactErrors, setContactErrors] = useState<{ firstName?: string; lastName?: string; email?: string; phone?: string }>({});
 
   useEffect(() => {
     if (!showSuccess) {
@@ -127,13 +257,7 @@ export default function IntakePage() {
     return () => clearTimeout(timer);
   }, [router, showSuccess]);
 
-  const [uploads, setUploads] = useState<Record<string, {
-    id: string;
-    name: string;
-    type: "photo" | "video";
-    progress: number;
-    status: "checking" | "ok" | "mismatch";
-  }[]>>({});
+  const [uploads, setUploads] = useState<Record<string, UploadItem[]>>({});
 
   const uploadPanels = useMemo(() => selectedRooms, [selectedRooms]);
 
@@ -183,58 +307,219 @@ export default function IntakePage() {
     );
   }, [uploads]);
 
-  const addUpload = (room: string, type: "photo" | "video") => {
-    const id = `${room}-${type}-${Date.now()}`;
-    const name =
-      type === "photo"
-        ? `${room.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.jpg`
-        : `${room.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.mp4`;
+  const addUpload = (room: string, file: File) => {
+    const isVideo = file.type.startsWith("video/");
+    const isLarge = file.size > 2 * 1024 * 1024;
+    const id = `${room}-${Date.now()}`;
+    const preview = !isVideo ? URL.createObjectURL(file) : null;
 
-    setUploads((prev) => {
-      const roomUploads = prev[room] ?? [];
-      return {
-        ...prev,
-        [room]: [...roomUploads, { id, name, type, progress: 0, status: "checking" }]
-      };
-    });
+    setUploads((prev) => ({
+      ...prev,
+      [room]: [...(prev[room] ?? []), {
+        id, name: file.name,
+        type: isVideo ? "video" : "photo",
+        preview, progress: 0, status: "compressing"
+      }]
+    }));
 
-    setTimeout(() => {
-      const isMismatch = Math.random() < 0.2;
-      setUploads((prev) => {
-        const roomUploads = prev[room] ?? [];
-        return {
+    const uploadStart = isLarge ? 900 : 200;
+
+    if (isLarge) {
+      setTimeout(() => {
+        setUploads((prev) => ({
           ...prev,
-          [room]: roomUploads.map((item) =>
-            item.id === id
-              ? { ...item, progress: 100, status: isMismatch ? "mismatch" : "ok" }
-              : item
+          [room]: (prev[room] ?? []).map(u =>
+            u.id === id ? { ...u, status: "uploading" as const, progress: 10 } : u
           )
-        };
-      });
-    }, 1200);
+        }));
+      }, 900);
+    }
+
+    [20, 45, 70, 90, 100].forEach((pct, i) => {
+      setTimeout(() => {
+        setUploads((prev) => ({
+          ...prev,
+          [room]: (prev[room] ?? []).map(u =>
+            u.id === id
+              ? { ...u, progress: pct, status: pct === 100 ? (Math.random() < 0.2 ? "mismatch" as const : "ok" as const) : "uploading" as const }
+              : u
+          )
+        }));
+      }, uploadStart + (i + 1) * 300);
+    });
   };
 
   const removeUpload = (room: string, id: string) => {
     setUploads((prev) => {
-      const roomUploads = prev[room] ?? [];
+      const item = (prev[room] ?? []).find(u => u.id === id);
+      if (item?.preview) URL.revokeObjectURL(item.preview);
       return {
         ...prev,
-        [room]: roomUploads.filter((item) => item.id !== id)
+        [room]: (prev[room] ?? []).filter(u => u.id !== id)
       };
     });
   };
 
-  const resolveMismatch = (room: string, id: string) => {
+  const moveUpload = (fromRoom: string, id: string, toRoom: string) => {
     setUploads((prev) => {
-      const roomUploads = prev[room] ?? [];
+      const item = (prev[fromRoom] ?? []).find(u => u.id === id);
+      if (!item) return prev;
       return {
         ...prev,
-        [room]: roomUploads.map((item) =>
-          item.id === id ? { ...item, status: "ok" } : item
-        )
+        [fromRoom]: (prev[fromRoom] ?? []).filter(u => u.id !== id),
+        [toRoom]: [...(prev[toRoom] ?? []), { ...item, status: "ok" as const }]
       };
     });
+    setActivePanel(toRoom);
   };
+
+  const resolveMismatch = (room: string, id: string) => {
+    setUploads((prev) => ({
+      ...prev,
+      [room]: (prev[room] ?? []).map(u =>
+        u.id === id ? { ...u, status: "ok" as const } : u
+      )
+    }));
+  };
+
+  // Restore session on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (!s || s.currentStep === undefined) return;
+      setCurrentStep(s.currentStep ?? 0);
+      setAddressQuery(s.addressQuery ?? "");
+      setSelectedProperty(s.selectedProperty ?? null);
+      setIsConfirmed(s.isConfirmed ?? false);
+      setBedrooms(s.bedrooms ?? null);
+      setBathrooms(s.bathrooms ?? null);
+      setYearBuilt(s.yearBuilt ?? "");
+      setLotSize(s.lotSize ?? "");
+      setCondition(s.condition ?? "");
+      setSelectedRooms(s.selectedRooms ?? ["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Exterior"]);
+      if (s.firstName) setFirstName(s.firstName);
+      if (s.lastName) setLastName(s.lastName);
+      if (s.email) setEmail(s.email);
+      if (s.phone) setPhone(s.phone);
+      if (s.currentStep > 0) setShowResumeBanner(true);
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced save to localStorage whenever key state changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const session = {
+        currentStep,
+        addressQuery,
+        selectedProperty,
+        isConfirmed,
+        bedrooms,
+        bathrooms,
+        yearBuilt,
+        lotSize,
+        condition,
+        selectedRooms,
+        firstName,
+        lastName,
+        email,
+        phone,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [currentStep, addressQuery, selectedProperty, isConfirmed, bedrooms, bathrooms, yearBuilt, lotSize, condition, selectedRooms, firstName, lastName, email, phone]);
+
+  // Load pre-qual answers whenever user reaches the review step
+  useEffect(() => {
+    if (currentStep !== steps.length - 1) return; // only on Review step
+    try {
+      const raw = localStorage.getItem("ch_prequal_answers");
+      if (raw) setPrequalAnswers(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+  }, [currentStep]);
+
+  const handleStartFresh = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setShowResumeBanner(false);
+    setCurrentStep(0);
+    setAddressQuery("");
+    setSelectedProperty(null);
+    setIsConfirmed(false);
+    setIsEditing(false);
+    setBedrooms(null);
+    setBathrooms(null);
+    setYearBuilt("");
+    setLotSize("");
+    setCondition("");
+    setSelectedRooms(["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Exterior"]);
+    setUploads({});
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setPhone("");
+  };
+
+  const showDropdown = addressQuery.length >= 2 && !isConfirmed && !selectedProperty;
+
+  const handleSelectProperty = useCallback((property: typeof mockProperties[number]) => {
+    setAddressQuery(property.address);
+    setSelectedProperty(property);
+    setIsConfirmed(false);
+    setHighlightedIndex(-1);
+  }, []);
+
+  const handleManualEntry = useCallback(() => {
+    setSelectedProperty(null);
+    setIsConfirmed(true);
+    setHighlightedIndex(-1);
+  }, []);
+
+  const handleConfirm = useCallback(() => {
+    setIsConfirming(true);
+    setTimeout(() => {
+      setIsConfirming(false);
+      setIsConfirmed(true);
+    }, 600);
+  }, []);
+
+  const handleAddressKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!showDropdown) return;
+    const total = filteredSuggestions.length + 1; // +1 for manual entry
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev + 1) % total);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex(prev => (prev - 1 + total) % total);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && highlightedIndex < filteredSuggestions.length) {
+        handleSelectProperty(filteredSuggestions[highlightedIndex]);
+      } else if (highlightedIndex === filteredSuggestions.length) {
+        handleManualEntry();
+      }
+    } else if (e.key === "Escape") {
+      setHighlightedIndex(-1);
+    }
+  }, [showDropdown, filteredSuggestions, highlightedIndex, handleSelectProperty, handleManualEntry]);
+
+  useEffect(() => {
+    const onMouseDown = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setHighlightedIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
 
   const validateStep = (step: number) => {
     setErrors({});
@@ -306,6 +591,20 @@ export default function IntakePage() {
       }
     }
 
+    if (step === 4) {
+      const result = contactSchema.safeParse({ firstName, lastName, email, phone });
+      if (!result.success) {
+        const fieldErrors: typeof contactErrors = {};
+        for (const issue of result.error.issues) {
+          const field = issue.path[0] as keyof typeof contactErrors;
+          fieldErrors[field] = field === "email" ? "Valid email required" : "Required";
+        }
+        setContactErrors(fieldErrors);
+        return false;
+      }
+      setContactErrors({});
+    }
+
     return true;
   };
 
@@ -372,105 +671,174 @@ export default function IntakePage() {
                 Step {currentStep + 1} of {steps.length}
               </span>
             </div>
-            <div className="intake-step-body">
+            <div className="intake-step-body" key={currentStep}>
+          {showResumeBanner && (
+            <div className="resume-banner">
+              <span className="resume-banner-icon">👋</span>
+              <div className="resume-banner-text">
+                <strong>Welcome back!</strong>
+                <span>Your progress has been saved. Pick up where you left off.</span>
+              </div>
+              <div className="resume-banner-actions">
+                <button type="button" className="resume-fresh-btn" onClick={handleStartFresh}>
+                  Start fresh
+                </button>
+                <button type="button" className="resume-dismiss-btn" onClick={() => setShowResumeBanner(false)}>
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
           {currentStep === 0 && (
             <div className="address-step">
               <div className="address-card">
                 <label className="input-label" htmlFor="address-search">
                   Property address
                 </label>
-                <div className="input-with-icon">
-                  <span className="input-icon">📍</span>
-                  <input
-                    id="address-search"
-                    type="text"
-                    placeholder="Start typing your address"
-                    value={addressQuery}
-                    onChange={(event) => {
-                      setAddressQuery(event.target.value);
-                      setSelectedProperty(null);
-                      setIsConfirmed(false);
-                      setIsEditing(false);
-                    }}
-                  />
-                </div>
-                  <div className="suggestions">
-                  {filteredSuggestions.map((property) => (
-                    <button
-                      key={property.address}
-                      type="button"
-                      className="suggestion-item"
-                      onClick={() => {
-                        setAddressQuery(property.address);
-                        setSelectedProperty(property);
+                <div className="address-input-wrapper" ref={dropdownRef}>
+                  <div className={`input-with-icon${showDropdown ? " focused" : ""}`}>
+                    <span className="input-icon">📍</span>
+                    <input
+                      id="address-search"
+                      type="text"
+                      placeholder="Start typing your address…"
+                      value={addressQuery}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setAddressQuery(e.target.value);
+                        setSelectedProperty(null);
                         setIsConfirmed(false);
                         setIsEditing(false);
+                        setHighlightedIndex(-1);
                       }}
-                    >
-                      {property.address}
-                    </button>
-                  ))}
+                      onKeyDown={handleAddressKeyDown}
+                    />
+                    {addressQuery && (
+                      <button
+                        type="button"
+                        className="input-clear"
+                        aria-label="Clear address"
+                        onClick={() => {
+                          setAddressQuery("");
+                          setSelectedProperty(null);
+                          setIsConfirmed(false);
+                          setHighlightedIndex(-1);
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {showDropdown && (
+                    <div className="address-dropdown" role="listbox">
+                      {filteredSuggestions.length > 0 ? (
+                        filteredSuggestions.map((p, i) => (
+                          <button
+                            key={p.address}
+                            type="button"
+                            role="option"
+                            aria-selected={highlightedIndex === i}
+                            className={`address-dropdown-item${highlightedIndex === i ? " highlighted" : ""}`}
+                            onMouseEnter={() => setHighlightedIndex(i)}
+                            onClick={() => handleSelectProperty(p)}
+                          >
+                            <span className="dropdown-item-icon">📍</span>
+                            <span className="dropdown-item-text">
+                              <span className="dropdown-address-line">{p.address}</span>
+                              <span className="dropdown-meta-line">{p.sqft} sqft · {p.beds} bed · {p.baths} bath · Built {p.yearBuilt}</span>
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="address-dropdown-empty">
+                          <span style={{ fontSize: "20px" }}>🔍</span>
+                          No matches — try a different address
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className={`address-dropdown-manual${highlightedIndex === filteredSuggestions.length ? " highlighted" : ""}`}
+                        onMouseEnter={() => setHighlightedIndex(filteredSuggestions.length)}
+                        onClick={handleManualEntry}
+                      >
+                        <span style={{ fontSize: "14px" }}>✏️</span>
+                        Use &ldquo;{addressQuery}&rdquo; — enter manually
+                      </button>
+                    </div>
+                  )}
                 </div>
+
                 {errors.address && (
-                  <p className="field-error">{errors.address}</p>
+                  <div className="intake-error">⚠ {errors.address}</div>
                 )}
               </div>
 
-              {selectedProperty && (
+              {(selectedProperty || addressQuery.length >= 5) && (
                 <div className={`property-card${isConfirmed ? " confirmed" : ""}`}>
-                  <div className="property-image" />
+                  {selectedProperty && (
+                    <div className="property-image">
+                      <span className="property-image-label">Exterior · Auto-fetched</span>
+                    </div>
+                  )}
                   <div className="property-details">
                     <div>
                       <p className="property-address">
-                        {selectedProperty.address}
+                        {selectedProperty?.address || addressQuery}
                       </p>
                       <p className="property-meta">
-                        {selectedProperty.sqft} sqft · {selectedProperty.beds} bed · {selectedProperty.baths} bath
+                        {selectedProperty
+                          ? `${selectedProperty.sqft} sqft · ${selectedProperty.beds} bed · ${selectedProperty.baths} bath`
+                          : "Entered manually — details will be confirmed by our team"}
                       </p>
                     </div>
-                    <div className="property-info-grid">
-                      <div>
-                        <span>Year built</span>
-                        <strong>{selectedProperty.yearBuilt}</strong>
+                    {selectedProperty && (
+                      <div className="property-info-grid">
+                        <div>
+                          <span>Year built</span>
+                          <strong>{selectedProperty.yearBuilt}</strong>
+                        </div>
+                        <div>
+                          <span>Lot size</span>
+                          <strong>{selectedProperty.lotSize}</strong>
+                        </div>
                       </div>
-                      <div>
-                        <span>Lot size</span>
-                        <strong>{selectedProperty.lotSize}</strong>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   {!isConfirmed && (
                     <div className="property-actions">
-                      <span>Is this the correct address?</span>
+                      <span>{selectedProperty ? "Is this the correct property?" : "Confirm your address to continue"}</span>
                       <div className="property-buttons">
-                        <button
-                          className="button-secondary"
-                          type="button"
-                          onClick={() => {
-                            setIsConfirmed(false);
-                            setIsEditing(false);
-                            setAddressQuery("");
-                            setSelectedProperty(null);
-                          }}
-                        >
-                          No, search again
-                        </button>
+                        {selectedProperty && (
+                          <button
+                            className="button-secondary"
+                            type="button"
+                            onClick={() => {
+                              setIsConfirmed(false);
+                              setIsEditing(false);
+                              setAddressQuery("");
+                              setSelectedProperty(null);
+                            }}
+                          >
+                            No, search again
+                          </button>
+                        )}
                         <button
                           className="button-primary"
                           type="button"
-                          onClick={() => {
-                            setIsConfirmed(true);
-                            setIsEditing(false);
-                          }}
+                          disabled={isConfirming}
+                          onClick={handleConfirm}
                         >
-                          Yes, correct
+                          {isConfirming ? <><span className="btn-spinner" />Confirming…</> : selectedProperty ? "Yes, this is correct" : "Confirm address"}
                         </button>
                       </div>
                     </div>
                   )}
-
                   {isConfirmed && (
-                    <div className="property-confirmed">Confirmed</div>
+                    <div className="property-confirmed">
+                      <span className="property-confirmed-icon">✓</span>
+                      Address confirmed
+                    </div>
                   )}
                 </div>
               )}
@@ -607,7 +975,7 @@ export default function IntakePage() {
                   );
                 })}
               </div>
-              {errors.rooms && <p className="field-error">{errors.rooms}</p>}
+              {errors.rooms && <div className="intake-error">⚠ {errors.rooms}</div>}
             </div>
           )}
 
@@ -615,163 +983,128 @@ export default function IntakePage() {
             <div className="uploads-step">
               <div className="section-header">
                 <h3>Upload your walkthrough</h3>
-                <p>Each room requires 3 photos and 1 short video.</p>
+                <p>3 photos + 1 video per room. Drag files onto each slot or click to browse.</p>
               </div>
               {mismatchUploads.length > 0 && (
-                <div className="upload-mismatch">
-                  <strong>Room mismatch detected.</strong>
-                  <span>
-                    Please fix the flagged uploads before continuing.
-                  </span>
+                <div className="upload-mismatch-banner">
+                  <span>⚠</span>
+                  <div>
+                    <strong>Room mismatch detected</strong>
+                    <span>Fix the flagged photos before continuing.</span>
+                  </div>
                 </div>
               )}
               <div className="upload-panels">
-                {uploadPanels.map((panel) => (
-                  <div key={panel} className="upload-panel">
-                    <button
-                      type="button"
-                      className={`upload-panel-header${
-                        activePanel === panel ? " active" : ""
-                      }`}
-                      onClick={() => setActivePanel(panel)}
-                    >
-                      <span>{panel}</span>
-                      <span className="upload-panel-meta">
-                        {(() => {
-                          const roomStatus = roomUploadStatus.find(
-                            (item) => item.room === panel
-                          );
-                          if (!roomStatus) {
-                            return "0/3 photos · 0/1 video";
-                          }
-                          return `${roomStatus.photoCount}/3 photos · ${roomStatus.videoCount}/1 video`;
-                        })()}
-                      </span>
-                      <span>{activePanel === panel ? "−" : "+"}</span>
-                    </button>
-                    {activePanel === panel && (
-                      <div className="upload-panel-body">
-                        <div className="upload-slot-grid">
-                          {Array.from({ length: 3 }).map((_, index) => {
-                            const photoUploads = (uploads[panel] ?? []).filter(
-                              (item) => item.type === "photo"
-                            );
-                            const uploadItem = photoUploads[index];
-
-                            return uploadItem ? (
-                              <div key={uploadItem.id} className="upload-slot filled">
-                                <span>{uploadItem.name}</span>
-                                {uploadItem.progress < 100 && (
-                                  <div className="progress-bar">
-                                    <div
-                                      className="progress-fill"
-                                      style={{ width: `${uploadItem.progress}%` }}
-                                    />
-                                  </div>
-                                )}
-                                {uploadItem.progress === 100 && (
-                                  <div
-                                    className={`upload-status ${uploadItem.status}`}
-                                  >
-                                    {uploadItem.status === "checking" && "Checking"}
-                                    {uploadItem.status === "ok" && "Matched"}
-                                    {uploadItem.status === "mismatch" && "Mismatch"}
-                                  </div>
-                                )}
-                                {uploadItem.status === "mismatch" && (
-                                  <button
-                                    type="button"
-                                    className="upload-fix"
-                                    onClick={() => resolveMismatch(panel, uploadItem.id)}
-                                  >
-                                    Mark corrected
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="upload-remove"
-                                  onClick={() => removeUpload(panel, uploadItem.id)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                key={`${panel}-photo-${index}`}
-                                type="button"
-                                className="upload-slot"
-                                onClick={() => addUpload(panel, "photo")}
-                              >
-                                <span className="upload-icon">＋</span>
-                                <span>Add photo</span>
-                              </button>
-                            );
-                          })}
-                          {(() => {
-                            const videoUpload = (uploads[panel] ?? []).find(
-                              (item) => item.type === "video"
-                            );
-
-                            return videoUpload ? (
-                              <div key={videoUpload.id} className="upload-slot filled">
-                                <span>{videoUpload.name}</span>
-                                {videoUpload.progress < 100 && (
-                                  <div className="progress-bar">
-                                    <div
-                                      className="progress-fill"
-                                      style={{ width: `${videoUpload.progress}%` }}
-                                    />
-                                  </div>
-                                )}
-                                {videoUpload.progress === 100 && (
-                                  <div
-                                    className={`upload-status ${videoUpload.status}`}
-                                  >
-                                    {videoUpload.status === "checking" && "Checking"}
-                                    {videoUpload.status === "ok" && "Matched"}
-                                    {videoUpload.status === "mismatch" && "Mismatch"}
-                                  </div>
-                                )}
-                                {videoUpload.status === "mismatch" && (
-                                  <button
-                                    type="button"
-                                    className="upload-fix"
-                                    onClick={() => resolveMismatch(panel, videoUpload.id)}
-                                  >
-                                    Mark corrected
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="upload-remove"
-                                  onClick={() => removeUpload(panel, videoUpload.id)}
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="upload-slot video"
-                                onClick={() => addUpload(panel, "video")}
-                              >
-                                <span className="upload-icon">▶</span>
-                                <span>Add video</span>
-                              </button>
-                            );
-                          })()}
+                {uploadPanels.map((panel) => {
+                  const roomStatus = roomUploadStatus.find(r => r.room === panel);
+                  const isDone = roomStatus?.photosMissing === 0 && roomStatus?.videoMissing === 0;
+                  const photoItems = (uploads[panel] ?? []).filter(u => u.type === "photo");
+                  const videoItem = (uploads[panel] ?? []).find(u => u.type === "video");
+                  const otherRooms = selectedRooms.filter(r => r !== panel);
+                  return (
+                    <div key={panel} className={`upload-panel${isDone ? " done" : ""}`}>
+                      <button
+                        type="button"
+                        className={`upload-panel-header${activePanel === panel ? " active" : ""}${isDone ? " done" : ""}`}
+                        onClick={() => setActivePanel(activePanel === panel ? "" : panel)}
+                      >
+                        {isDone && <span className="upload-panel-check">✓</span>}
+                        <span className="upload-panel-room">{panel}</span>
+                        <span className="upload-panel-meta">
+                          {roomStatus?.photoCount ?? 0}/3 photos · {roomStatus?.videoCount ?? 0}/1 video
+                        </span>
+                        <span className="upload-panel-toggle">{activePanel === panel ? "−" : "+"}</span>
+                      </button>
+                      {activePanel === panel && (
+                        <div className="upload-panel-body">
+                          <div className="upload-slot-grid">
+                            {Array.from({ length: 3 }).map((_, idx) => (
+                              <UploadSlot
+                                key={`${panel}-photo-${idx}`}
+                                item={photoItems[idx]}
+                                room={panel}
+                                otherRooms={otherRooms}
+                                onUpload={(file) => addUpload(panel, file)}
+                                onRemove={(id) => removeUpload(panel, id)}
+                                onResolve={(id) => resolveMismatch(panel, id)}
+                                onMove={(id, toRoom) => moveUpload(panel, id, toRoom)}
+                              />
+                            ))}
+                            <UploadSlot
+                              key={`${panel}-video`}
+                              item={videoItem}
+                              isVideo
+                              room={panel}
+                              otherRooms={otherRooms}
+                              onUpload={(file) => addUpload(panel, file)}
+                              onRemove={(id) => removeUpload(panel, id)}
+                              onResolve={(id) => resolveMismatch(panel, id)}
+                              onMove={(id, toRoom) => moveUpload(panel, id, toRoom)}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               {errors.uploads && (
-                <p className="field-error">{errors.uploads}</p>
+                <div className="intake-error">⚠ {errors.uploads}</div>
               )}
             </div>
           )}
           {currentStep === 4 && (
+            <div className="contact-step">
+              <div className="form-grid">
+                <div>
+                  <label className="input-label">First name</label>
+                  <input
+                    className={`text-input${contactErrors.firstName ? " input-error" : ""}`}
+                    type="text"
+                    placeholder="Jane"
+                    value={firstName}
+                    onChange={e => { setFirstName(e.target.value); setContactErrors(p => ({ ...p, firstName: undefined })); }}
+                  />
+                  {contactErrors.firstName && <p className="field-error">{contactErrors.firstName}</p>}
+                </div>
+                <div>
+                  <label className="input-label">Last name</label>
+                  <input
+                    className={`text-input${contactErrors.lastName ? " input-error" : ""}`}
+                    type="text"
+                    placeholder="Smith"
+                    value={lastName}
+                    onChange={e => { setLastName(e.target.value); setContactErrors(p => ({ ...p, lastName: undefined })); }}
+                  />
+                  {contactErrors.lastName && <p className="field-error">{contactErrors.lastName}</p>}
+                </div>
+                <div>
+                  <label className="input-label">Email address</label>
+                  <input
+                    className={`text-input${contactErrors.email ? " input-error" : ""}`}
+                    type="email"
+                    placeholder="jane@example.com"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setContactErrors(p => ({ ...p, email: undefined })); }}
+                  />
+                  {contactErrors.email && <p className="field-error">{contactErrors.email}</p>}
+                </div>
+                <div>
+                  <label className="input-label">Phone number</label>
+                  <input
+                    className={`text-input${contactErrors.phone ? " input-error" : ""}`}
+                    type="tel"
+                    placeholder="(555) 000-0000"
+                    value={phone}
+                    onChange={e => { setPhone(e.target.value); setContactErrors(p => ({ ...p, phone: undefined })); }}
+                  />
+                  {contactErrors.phone && <p className="field-error">{contactErrors.phone}</p>}
+                </div>
+              </div>
+              <p className="contact-note">Your information is kept private and only used to follow up on your submission.</p>
+            </div>
+          )}
+          {currentStep === 5 && (
             <div className="review-step">
               <div className="review-grid">
                 <div className="review-left">
@@ -801,31 +1134,59 @@ export default function IntakePage() {
                     </div>
                   </div>
 
+                  <div className="summary-card">
+                    <h3>Contact Info</h3>
+                    <div className="summary-details">
+                      <div>
+                        <span>Name</span>
+                        <strong>{`${firstName} ${lastName}`.trim() || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Email</span>
+                        <strong>{email || "—"}</strong>
+                      </div>
+                      <div>
+                        <span>Phone</span>
+                        <strong>{phone || "—"}</strong>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="ai-summary-card">
                     <div className="ai-header">
                       <h3>AI Summary (Preview)</h3>
                       <span className="ai-badge">Generated</span>
                     </div>
-                    <div className="ai-section">
-                      <h4>Property Overview</h4>
-                      <p>
-                        Two-story home with bright living areas and a recently
-                        updated kitchen. Exterior appears well maintained.
-                      </p>
-                    </div>
-                    <div className="ai-section">
-                      <h4>Condition Signals</h4>
-                      <ul>
-                        <li>Hardwood flooring in main living area.</li>
-                        <li>Updated countertops and cabinetry.</li>
-                        <li>Clean exterior with minimal wear.</li>
-                      </ul>
-                    </div>
-                    <div className="ai-section">
-                      <h4>Visible Flags</h4>
-                      <div className="ai-flags">
-                        <span>Minor paint wear</span>
-                        <span>Older fixtures in bath 2</span>
+                    <div className="admin-ai-card">
+                      <div className="ai-summary-section">
+                        <h5>Property Overview</h5>
+                        <p>{getOverview(condition, bedrooms, bathrooms)}</p>
+                      </div>
+                      <div className="ai-summary-section">
+                        <h5>Condition by Room</h5>
+                        <div className="ai-room-grid">
+                          {selectedRooms.map(room => {
+                            const signal = getRoomSignal(room, condition);
+                            return (
+                              <div key={room} className="ai-room-row">
+                                <span className="ai-room-name">{room}</span>
+                                <span className={`ai-room-signal ai-signal-${signal}`}>{getSignalLabel(signal)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="ai-summary-section">
+                        <h5>Visible Flags</h5>
+                        <div className="admin-ai-flags">
+                          {getFlags(condition).map(flag => (
+                            <span key={flag}>{flag}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="ai-summary-section">
+                        <h5>Overall Assessment</h5>
+                        <p className="ai-overall">{getAssessment(condition)}</p>
                       </div>
                     </div>
                   </div>
@@ -835,34 +1196,44 @@ export default function IntakePage() {
                   <div className="gallery-card">
                     <h3>Photo Gallery</h3>
                     <div className="gallery-grid">
-                      {Array.from({ length: 6 }).map((_, index) => (
-                        <div key={index} className="gallery-tile">
-                          <span>Room photo {index + 1}</span>
-                        </div>
-                      ))}
+                      {(() => {
+                        const photos = Object.entries(uploads).flatMap(([room, items]) =>
+                          items
+                            .filter(item => item.type === "photo" && item.preview)
+                            .map(item => ({ id: item.id, preview: item.preview!, room }))
+                        ).slice(0, 9);
+                        if (photos.length === 0) {
+                          return Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="gallery-tile"><span>Room photo {i + 1}</span></div>
+                          ));
+                        }
+                        return photos.map(photo => (
+                          <div
+                            key={photo.id}
+                            className="gallery-tile"
+                            style={{ backgroundImage: `url(${photo.preview})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                          >
+                            <span className="gallery-tile-room">{photo.room}</span>
+                          </div>
+                        ));
+                      })()}
                     </div>
                   </div>
 
                   <div className="prequal-card">
                     <h3>Pre‑Qualification Answers</h3>
-                    <div className="prequal-list">
-                      <div>
-                        <span>Ownership status</span>
-                        <strong>Owner‑occupied</strong>
+                    {Object.keys(prequalAnswers).length > 0 ? (
+                      <div className="prequal-list">
+                        {Object.entries(prequalAnswers).map(([key, value]) => (
+                          <div key={key}>
+                            <span>{PREQUAL_LABELS[key] ?? key}</span>
+                            <strong>{value}</strong>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <span>Timeline to sell</span>
-                        <strong>Within 60 days</strong>
-                      </div>
-                      <div>
-                        <span>Mortgage status</span>
-                        <strong>Active mortgage</strong>
-                      </div>
-                      <div>
-                        <span>Offer preference</span>
-                        <strong>Open to cash or listing</strong>
-                      </div>
-                    </div>
+                    ) : (
+                      <p className="prequal-empty">Complete the pre-qualification chat to see your answers here.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -870,7 +1241,41 @@ export default function IntakePage() {
               <button
                 className="button-primary submit-button"
                 type="button"
-                onClick={() => setShowSuccess(true)}
+                onClick={() => {
+                  try {
+                    const id = `MS-${Date.now()}`;
+                    const now = new Date();
+                    const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                    const submission = {
+                      id,
+                      name: `${firstName} ${lastName}`.trim() || "Submitted Seller",
+                      email,
+                      phone,
+                      address: selectedProperty?.address || addressQuery || "Unknown Address",
+                      date: dateStr,
+                      submittedAt: now.toISOString(),
+                      status: "New",
+                      isNew: true,
+                      sqft: selectedProperty?.sqft || "",
+                      beds: bedrooms,
+                      baths: bathrooms,
+                      yearBuilt,
+                      lotSize,
+                      condition,
+                      rooms: selectedRooms,
+                      prequalAnswers
+                    };
+                    const existing = localStorage.getItem("ch_submissions");
+                    const list = existing ? JSON.parse(existing) : [];
+                    list.unshift(submission);
+                    localStorage.setItem("ch_submissions", JSON.stringify(list));
+                  } catch {
+                    // ignore storage errors
+                  }
+                  localStorage.removeItem(SESSION_KEY);
+                  localStorage.removeItem("ch_prequal_answers");
+                  setShowSuccess(true);
+                }}
               >
                 Submit Intake
               </button>
@@ -899,6 +1304,8 @@ export default function IntakePage() {
           )}
         </div>
       </section>
+
+      <IntakeChatbot />
 
       {showSuccess && (
         <div className="modal-backdrop" role="dialog" aria-modal="true">

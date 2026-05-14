@@ -1,0 +1,68 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+const SESSION_KEY = "ch_intake_session";
+const STEPS = ["Address", "Property", "Rooms", "Uploads", "Review"];
+
+interface Session {
+  currentStep: number;
+  addressQuery: string;
+  selectedProperty: { address: string; sqft: string } | null;
+  savedAt: string;
+}
+
+export default function HeroResumeCard() {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (raw) setSession(JSON.parse(raw));
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }, []);
+
+  const hasActiveSession = session && session.currentStep > 0;
+  const progress = session ? Math.round((session.currentStep / (STEPS.length - 1)) * 100) : 65;
+  const address = session?.selectedProperty?.address || session?.addressQuery || "";
+  const streetPart = address.split(",")[0] || "Willow Lane Residence";
+  const cityPart = address.split(",").slice(1).join(",").trim() || "Austin, TX · 2,140 sqft";
+  const stepName = session ? STEPS[Math.min(session.currentStep, STEPS.length - 1)] : "";
+
+  return (
+    <div className={`hero-card${hasActiveSession ? " hero-card-active" : ""}`}>
+      <div className={`hero-card-image${hasActiveSession ? " hero-card-image-live" : ""}`} />
+      <div className="hero-card-body">
+        {hasActiveSession && (
+          <div className="hero-card-live-badge">In Progress</div>
+        )}
+        <p className="hero-card-title">{streetPart}</p>
+        <p className="hero-card-meta">
+          {hasActiveSession ? cityPart : "Austin, TX · 2,140 sqft"}
+        </p>
+        <div className="hero-card-row">
+          <span>
+            {hasActiveSession ? `Step ${session!.currentStep + 1} — ${stepName}` : "Intake progress"}
+          </span>
+          <strong>{hasActiveSession ? `${progress}%` : "65%"}</strong>
+        </div>
+        <div className="hero-card-progress">
+          <div
+            className="hero-card-progress-fill"
+            style={{ width: `${hasActiveSession ? progress : 65}%` }}
+          />
+        </div>
+        {hasActiveSession ? (
+          <Link href="/intake" className="hero-card-resume-btn">
+            Resume Your Review →
+          </Link>
+        ) : (
+          <p className="hero-card-note">Resume anytime on this device.</p>
+        )}
+      </div>
+    </div>
+  );
+}
