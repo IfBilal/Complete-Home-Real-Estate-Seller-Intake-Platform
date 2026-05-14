@@ -179,6 +179,7 @@ const contactSchema = z.object({
 export default function IntakePage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [stepDirection, setStepDirection] = useState<"forward" | "backward">("forward");
   const [addressQuery, setAddressQuery] = useState("");
   const [selectedProperty, setSelectedProperty] = useState<
     (typeof mockProperties)[number] | null
@@ -613,6 +614,7 @@ export default function IntakePage() {
       return;
     }
 
+    setStepDirection("forward");
     setCurrentStep((prev) => Math.min(steps.length - 1, prev + 1));
   };
 
@@ -645,7 +647,7 @@ export default function IntakePage() {
                           isActive ? " active" : isComplete ? " complete" : ""
                         }`}
                       >
-                        {index + 1}
+                        {isComplete ? "✓" : index + 1}
                       </span>
                       <span className={`step-label${isActive ? " active" : ""}`}>
                         {step}
@@ -662,6 +664,9 @@ export default function IntakePage() {
       <section className="intake-body">
         <div className="container">
           <div className="intake-card intake-panel reveal">
+            <div className="intake-card-progress-bar">
+              <div className="intake-card-progress-fill" style={{ width: `${Math.round((currentStep / (steps.length - 1)) * 100)}%` }} />
+            </div>
             <div className="intake-step-header">
               <div>
                 <h2>{steps[currentStep]}</h2>
@@ -671,7 +676,7 @@ export default function IntakePage() {
                 Step {currentStep + 1} of {steps.length}
               </span>
             </div>
-            <div className="intake-step-body" key={currentStep}>
+            <div className="intake-step-body" key={currentStep} data-dir={stepDirection}>
           {showResumeBanner && (
             <div className="resume-banner">
               <span className="resume-banner-icon">👋</span>
@@ -1328,7 +1333,10 @@ export default function IntakePage() {
             <div className="intake-nav">
               <button
                 className="button-secondary"
-                onClick={() => setCurrentStep((prev) => Math.max(0, prev - 1))}
+                onClick={() => {
+                  setStepDirection("backward");
+                  setCurrentStep((prev) => Math.max(0, prev - 1));
+                }}
                 disabled={currentStep === 0}
               >
                 Back

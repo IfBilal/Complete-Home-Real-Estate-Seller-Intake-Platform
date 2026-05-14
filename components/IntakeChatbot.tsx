@@ -156,7 +156,13 @@ export default function IntakeChatbot() {
         ) : (
           <span className="chatbot-trigger-icon">💬</span>
         )}
-        {!open && unread > 0 && (
+        {!open && done && (
+          <span className="chatbot-badge chatbot-badge-done">✓</span>
+        )}
+        {!open && !done && Object.keys(answers).length > 0 && (
+          <span className="chatbot-badge chatbot-badge-progress">{Object.keys(answers).length}/{QUESTIONS.length}</span>
+        )}
+        {!open && !done && Object.keys(answers).length === 0 && unread > 0 && (
           <span className="chatbot-badge">{unread}</span>
         )}
       </button>
