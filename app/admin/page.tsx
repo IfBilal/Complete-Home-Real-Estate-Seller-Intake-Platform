@@ -84,6 +84,16 @@ export default function AdminPage() {
   }
 
   return (
+    <>
+    <div className="admin-nav">
+      <div className="admin-nav-brand">
+        <span className="admin-nav-dot" />
+        Complete Home <span className="admin-nav-sep">·</span> Admin
+      </div>
+      <button className="admin-nav-out" type="button" onClick={() => setIsLoggedIn(false)}>
+        Sign out
+      </button>
+    </div>
     <main className="container section">
       <div className="admin-header premium reveal-once" style={{ "--delay": "60ms" } as React.CSSProperties}>
         <div>
@@ -112,14 +122,14 @@ export default function AdminPage() {
             </div>
             <div className="admin-filters">
               <input
-                className="text-input"
+                className="admin-search-input"
                 type="text"
                 placeholder="Search by name or address"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
               />
               <select
-                className="text-input"
+                className="admin-select"
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
               >
@@ -139,15 +149,17 @@ export default function AdminPage() {
                 key={submission.id}
                 onClick={() => setSelectedId(submission.id)}
               >
-                <div>
+                <div className="admin-record-top">
                   <strong>{submission.name}</strong>
-                  <span className="admin-id">{submission.id}</span>
+                  <span className={`status-pill ${submission.status.toLowerCase().replace(" ", "-")}`}>
+                    {submission.status}
+                  </span>
                 </div>
                 <span className="admin-address">{submission.address}</span>
-                <span className="admin-date">{submission.date}</span>
-                <span className={`status-pill ${submission.status.toLowerCase().replace(" ", "-")}`}>
-                  {submission.status}
-                </span>
+                <div className="admin-record-bottom">
+                  <span className="admin-id">{submission.id}</span>
+                  <span className="admin-date">{submission.date}</span>
+                </div>
               </button>
             ))}
           </div>
@@ -166,37 +178,31 @@ export default function AdminPage() {
             </div>
             <div className="detail-section">
               <h4>Status</h4>
-              <div className="status-actions">
-                <select
-                  className="text-input"
-                  value={selectedRecord?.status}
-                  onChange={(event) => {
-                    const nextStatus = event.target.value;
-                    setRecords((prev) =>
-                      prev.map((item) =>
-                        item.id === selectedRecord?.id
-                          ? { ...item, status: nextStatus }
-                          : item
+              <div className="status-pills">
+                {["New", "Reviewing", "Offer Made", "Closed"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`status-pill-btn${selectedRecord?.status === s ? " status-pill-active" : ""}`}
+                    onClick={() =>
+                      setRecords((prev) =>
+                        prev.map((item) =>
+                          item.id === selectedRecord?.id ? { ...item, status: s } : item
+                        )
                       )
-                    );
-                  }}
-                >
-                  <option>New</option>
-                  <option>Reviewing</option>
-                  <option>Offer Made</option>
-                  <option>Closed</option>
-                </select>
-                <button className="button-secondary" type="button">
-                  Save Status
-                </button>
+                    }
+                  >
+                    {s}
+                  </button>
+                ))}
               </div>
             </div>
             <div className="detail-section">
               <h4>Gallery</h4>
               <div className="detail-gallery">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="gallery-tile">
-                    Room {index + 1}
+                {["Kitchen", "Living Room", "Master Bed", "Bathroom", "Exterior"].map((room) => (
+                  <div key={room} className="gallery-tile" style={{ backgroundImage: "url('/livingRoom.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
+                    <span className="gallery-tile-room">{room}</span>
                   </div>
                 ))}
               </div>
@@ -223,21 +229,23 @@ export default function AdminPage() {
                 value={noteText}
                 onChange={(event) => setNoteText(event.target.value)}
               />
-              <button
-                type="button"
-                className="button-primary"
-                onClick={() => {
-                  setNoteSaved(true);
-                  setTimeout(() => setNoteSaved(false), 2000);
-                }}
-              >
-                Save Notes
-              </button>
-              {noteSaved && <span className="note-saved">Saved!</span>}
+              <div className="admin-notes-footer">
+                <button
+                  type="button"
+                  className="admin-notes-save"
+                  onClick={() => {
+                    setNoteSaved(true);
+                    setTimeout(() => setNoteSaved(false), 2000);
+                  }}
+                >
+                  {noteSaved ? "✓ Saved" : "Save Notes"}
+                </button>
+              </div>
             </div>
           </div>
         </section>
       </div>
     </main>
+    </>
   );
 }

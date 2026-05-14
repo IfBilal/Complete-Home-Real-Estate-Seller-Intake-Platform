@@ -1,3 +1,5 @@
+import FAQAccordion from "../components/FAQAccordion";
+
 export default function Home() {
   return (
     <main>
@@ -5,25 +7,27 @@ export default function Home() {
         <div className="hero-overlay" />
         <div className="container hero-content">
           <div className="hero-text reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
-            <div className="hero-pill">Private Seller Intake · Concierge Guided</div>
+            <div className="hero-pill">Guided Seller Review · Private Market Access</div>
             <h1>
-              Navigate your <span>seller journey</span> with precision.
+              Get a real offer on your home —{" "}
+              <span>without the listing.</span>
             </h1>
             <p className="hero-subtext">
-              A guided, mobile-first intake for homeowners who want a faster,
-              more transparent path to a serious review.
+              Complete Home connects sellers directly to a private market review.
+              No open houses, no repairs, no obligation.
             </p>
             <div className="hero-actions">
               <a className="button-primary" href="/intake">
-                Start Seller Intake
+                Start Your Review
               </a>
               <a className="button-secondary" href="#how-it-works">
                 See How It Works
               </a>
             </div>
+            <p className="hero-micro">Takes 10 minutes · Free · Save and resume anytime</p>
             <div className="hero-trust">
               <div className="hero-stars">★★★★★</div>
-              <span>Trusted by 200+ homeowners nationwide</span>
+              <span>Trusted by 470+ homeowners nationwide</span>
             </div>
           </div>
           <div className="hero-card reveal" style={{ "--delay": "160ms" } as React.CSSProperties}>
@@ -38,9 +42,7 @@ export default function Home() {
               <div className="hero-card-progress">
                 <div className="hero-card-progress-fill" />
               </div>
-              <p className="hero-card-note">
-                Resume anytime on this device.
-              </p>
+              <p className="hero-card-note">Resume anytime on this device.</p>
             </div>
           </div>
         </div>
@@ -49,21 +51,21 @@ export default function Home() {
             <span className="metric-icon">⏱</span>
             <div>
               <strong>48 hrs</strong>
-              <span>Avg review time</span>
+              <span>Avg response time</span>
             </div>
           </div>
           <div className="metric-card reveal" style={{ "--delay": "200ms" } as React.CSSProperties}>
             <span className="metric-icon">🔒</span>
             <div>
               <strong>Private</strong>
-              <span>Secure uploads</span>
+              <span>Secure & encrypted</span>
             </div>
           </div>
           <div className="metric-card reveal" style={{ "--delay": "280ms" } as React.CSSProperties}>
             <span className="metric-icon">✓</span>
             <div>
               <strong>No obligation</strong>
-              <span>Transparent review</span>
+              <span>100% free review</span>
             </div>
           </div>
         </div>
@@ -72,29 +74,25 @@ export default function Home() {
       <section className="section section-alt">
         <div className="container">
           <div className="section-header reveal">
-            <h2>Proven review velocity</h2>
-            <p>Clear timelines and consistent outcomes across every intake.</p>
+            <h2>Proven results across 48 states</h2>
+            <p>Clear timelines and consistent outcomes for every homeowner.</p>
           </div>
           <div className="metrics-grid">
             <div className="metrics-card reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
-              <span className="metrics-icon">📈</span>
               <h3>470+</h3>
-              <p>Successful reviews</p>
+              <p>Verified property reviews</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "140ms" } as React.CSSProperties}>
-              <span className="metrics-icon">👥</span>
-              <h3>63</h3>
-              <p>Advisor team members</p>
+              <h3>48</h3>
+              <p>States covered</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "200ms" } as React.CSSProperties}>
-              <span className="metrics-icon">🏡</span>
-              <h3>266+</h3>
-              <p>Seller submissions</p>
+              <h3>48h</h3>
+              <p>Average offer turnaround</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "260ms" } as React.CSSProperties}>
-              <span className="metrics-icon">⭐</span>
-              <h3>213+</h3>
-              <p>5‑star owner ratings</p>
+              <h3>$0</h3>
+              <p>Cost to get reviewed</p>
             </div>
           </div>
         </div>
@@ -104,24 +102,41 @@ export default function Home() {
         <div className="container">
           <div className="section-header reveal">
             <h2>How it works</h2>
-            <p>Guided steps, built to feel calm and efficient.</p>
+            <p>Three steps. No appointments, no strangers in your home.</p>
           </div>
-          <div className="card-grid">
-            <div className="info-card reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
-              <div className="info-icon">1</div>
-              <h3>Confirm your address</h3>
-              <p>We prefill property details to keep things accurate and fast.</p>
-            </div>
-            <div className="info-card reveal" style={{ "--delay": "140ms" } as React.CSSProperties}>
-              <div className="info-icon">2</div>
-              <h3>Capture your walkthrough</h3>
-              <p>Upload room-by-room photos and short videos from your phone.</p>
-            </div>
-            <div className="info-card reveal" style={{ "--delay": "200ms" } as React.CSSProperties}>
-              <div className="info-icon">3</div>
-              <h3>Get reviewed quickly</h3>
-              <p>Our team reviews and follows up with clear next steps.</p>
-            </div>
+          <div className="timeline">
+            {[
+              {
+                n: "1",
+                title: "Confirm your address",
+                desc: "We prefill your property details from public records — square footage, year built, lot size, and bed/bath counts. You confirm in seconds.",
+              },
+              {
+                n: "2",
+                title: "Complete your walkthrough",
+                desc: "Upload room-by-room photos and short videos from your phone. Our guided flow takes most sellers under 15 minutes.",
+              },
+              {
+                n: "3",
+                title: "Receive your expert offer",
+                desc: "Our specialist team reviews your submission and responds with a comprehensive market analysis and private offer within 48 hours.",
+              },
+            ].map((step, i, arr) => (
+              <div
+                key={i}
+                className="timeline-step reveal"
+                style={{ "--delay": `${i * 100 + 80}ms` } as React.CSSProperties}
+              >
+                <div className="timeline-left">
+                  <div className="timeline-dot">{step.n}</div>
+                  {i < arr.length - 1 && <div className="timeline-connector" />}
+                </div>
+                <div className="timeline-body">
+                  <h3>{step.title}</h3>
+                  <p>{step.desc}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -132,10 +147,10 @@ export default function Home() {
             <h2>Designed for serious sellers</h2>
             <p>A premium intake experience that respects your time and privacy.</p>
             <ul>
-              <li>Streamlined, calm, and straightforward.</li>
-              <li>Clear prompts for every space.</li>
-              <li>Secure uploads and private review.</li>
-              <li>Resume anytime on this device.</li>
+              <li>Zero obligation — accept only if it works for you.</li>
+              <li>Private market access — your home is never listed publicly.</li>
+              <li>Skip staging, showings, and open houses entirely.</li>
+              <li>Secure, encrypted uploads at every step.</li>
             </ul>
           </div>
           <div className="benefits-media reveal" style={{ "--delay": "140ms" } as React.CSSProperties}>
@@ -147,50 +162,74 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="faq" className="section">
+      <section className="section">
         <div className="container">
           <div className="section-header reveal">
-            <h2>Frequently asked questions</h2>
+            <h2>What homeowners say</h2>
+            <p>Real sellers. Real results.</p>
+          </div>
+          <div className="testimonials-grid">
+            <div className="testimonial-card reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
+              <div className="testimonial-stars">★★★★★</div>
+              <p className="testimonial-quote">
+                &ldquo;I had an offer in hand within 36 hours. No open houses, no repairs required — just a fair offer and a smooth close. I wish I had found Complete Home sooner.&rdquo;
+              </p>
+              <div className="testimonial-author">
+                <div className="testimonial-avatar" style={{ background: "#2563eb" }}>M</div>
+                <div>
+                  <p className="testimonial-name">Marcus W.</p>
+                  <p className="testimonial-location">Austin, TX</p>
+                </div>
+              </div>
+            </div>
+            <div className="testimonial-card reveal" style={{ "--delay": "160ms" } as React.CSSProperties}>
+              <div className="testimonial-stars">★★★★★</div>
+              <p className="testimonial-quote">
+                &ldquo;The walkthrough took 20 minutes on my phone. Our analyst called the next morning. The whole thing felt incredibly professional and low-pressure.&rdquo;
+              </p>
+              <div className="testimonial-author">
+                <div className="testimonial-avatar" style={{ background: "#7c3aed" }}>P</div>
+                <div>
+                  <p className="testimonial-name">Priya N.</p>
+                  <p className="testimonial-location">Dallas, TX</p>
+                </div>
+              </div>
+            </div>
+            <div className="testimonial-card reveal" style={{ "--delay": "240ms" } as React.CSSProperties}>
+              <div className="testimonial-stars">★★★★★</div>
+              <p className="testimonial-quote">
+                &ldquo;We needed a quick, private sale due to a relocation. Complete Home made it completely effortless. Ten days from intake to closed.&rdquo;
+              </p>
+              <div className="testimonial-author">
+                <div className="testimonial-avatar" style={{ background: "#0891b2" }}>D</div>
+                <div>
+                  <p className="testimonial-name">David & Carol C.</p>
+                  <p className="testimonial-location">Houston, TX</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="section section-alt">
+        <div className="container">
+          <div className="section-header reveal">
+            <h2>Common questions</h2>
             <p>Everything you need to know before you start.</p>
           </div>
-          <div className="faq-list reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
-            <details open>
-              <summary>How long does the intake take?</summary>
-              <p>
-                Most sellers finish in 8–12 minutes, depending on how many rooms
-                you upload.
-              </p>
-            </details>
-            <details>
-              <summary>Can I save and finish later?</summary>
-              <p>
-                Yes. Your progress is saved locally in your browser so you can
-                return anytime from the same device.
-              </p>
-            </details>
-            <details>
-              <summary>What kind of photos should I upload?</summary>
-              <p>Clear, well-lit photos of each room and exterior areas are best.</p>
-            </details>
-            <details>
-              <summary>How will I get updates?</summary>
-              <p>
-                We send an optional confirmation email after submission and
-                follow up as your review progresses.
-              </p>
-            </details>
-          </div>
+          <FAQAccordion />
         </div>
       </section>
 
       <section className="cta-band">
         <div className="container cta-band-inner reveal">
           <div>
-            <h2>Ready for a premium intake experience?</h2>
-            <p>Start your seller intake in minutes and stay in control.</p>
+            <h2>Ready for a stress-free sale?</h2>
+            <p>Get your free expert review — no listing, no obligation, no hassle.</p>
           </div>
           <a className="button-primary" href="/intake">
-            Start Seller Intake
+            Start Your Review
           </a>
         </div>
       </section>

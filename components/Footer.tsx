@@ -1,31 +1,48 @@
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="footer">
-      <div className="container">
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px"
-          }}
-        >
-          <strong>Seller Intake</strong>
-          <p style={{ maxWidth: "480px", color: "#D1D5DB", margin: 0 }}>
-            A premium seller intake experience that keeps the process simple
-            and transparent.
+      <div className="container footer-inner">
+        <div className="footer-brand">
+          <strong className="footer-brand-name">Complete Home</strong>
+          <span className="footer-brand-sub">Real Estate Experts</span>
+          <p className="footer-brand-desc">
+            Providing homeowners with a faster, data-driven path to a private
+            market review and a stress-free sale.
           </p>
           <div className="footer-contact">
-            <span>Call: (678) 815-9233</span>
-            <span>Email: support@sellerintake.com</span>
+            <span>(678) 815-9233</span>
+            <span>support@completehome.com</span>
           </div>
-          <div style={{ display: "flex", gap: "18px", flexWrap: "wrap" }}>
-            <a href="/privacy">Privacy</a>
-            <a href="/intake">Seller Intake</a>
-            <a href="/admin">Admin</a>
+        </div>
+
+        <div className="footer-nav-group">
+          <p className="footer-nav-heading">Platform</p>
+          <ul className="footer-nav-list">
+            <li><Link href="/#how-it-works">How It Works</Link></li>
+            <li><Link href="/#benefits">Benefits</Link></li>
+            <li><Link href="/#faq">Common Questions</Link></li>
+            <li><Link href="/intake">Start Your Review</Link></li>
+          </ul>
+        </div>
+
+        <div className="footer-nav-group">
+          <p className="footer-nav-heading">Company</p>
+          <ul className="footer-nav-list">
+            <li><Link href="/privacy">Privacy Policy</Link></li>
+            <li><Link href="/admin">Staff Login</Link></li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="footer-bottom">
+        <div className="container footer-bottom-inner">
+          <span>© 2026 Complete Home Real Estate Experts. All rights reserved.</span>
+          <div className="footer-bottom-links">
+            <Link href="/privacy">Privacy Policy</Link>
+            <Link href="#">Terms of Service</Link>
           </div>
-          <span style={{ fontSize: "13px", color: "#9CA3AF" }}>
-            © 2026 Real Estate Seller Intake. All rights reserved.
-          </span>
         </div>
       </div>
     </footer>
