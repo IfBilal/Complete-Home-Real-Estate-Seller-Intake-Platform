@@ -1,7 +1,14 @@
 :root {
-  --brand-navy-900: #0b1c2c;
+  --brand-navy-900: #080f1a;
+  --brand-navy-800: #0b1c2c;
   --brand-blue-600: #2563eb;
   --brand-blue-700: #1d4ed8;
+  --brand-gold-500: #c9a227;
+  --brand-gold-600: #b8901f;
+  --brand-gold-glow: rgba(201, 162, 39, 0.35);
+  --brand-teal-500: #0d9488;
+  --brand-teal-600: #0f766e;
+  --brand-teal-glow: rgba(13, 148, 136, 0.28);
   --brand-slate-600: #475569;
   --brand-steel-700: #1f2e44;
 
@@ -11,7 +18,7 @@
   --neutral-ink-400: #94a3b8;
   --neutral-line-200: #e2e8f0;
   --neutral-line-100: #f1f5f9;
-  --neutral-sand-50: #f8fafc;
+  --neutral-sand-50: #faf8f5;
   --neutral-white: #ffffff;
 
   --status-success-600: #16a34a;
@@ -20,14 +27,15 @@
   --status-info-500: #0ea5e9;
 
   --hero-gradient: linear-gradient(
-    180deg,
-    rgba(11, 28, 44, 0.68) 0%,
-    rgba(11, 28, 44, 0.45) 60%,
-    rgba(11, 28, 44, 0.25) 100%
+    160deg,
+    rgba(8, 15, 26, 0.88) 0%,
+    rgba(11, 28, 44, 0.72) 55%,
+    rgba(11, 28, 44, 0.32) 100%
   );
 
-  --shadow-soft: 0 12px 30px rgba(11, 28, 44, 0.18);
-  --shadow-elevated: 0 18px 40px rgba(11, 28, 44, 0.22);
+  --shadow-soft: 0 12px 30px rgba(8, 15, 26, 0.18);
+  --shadow-elevated: 0 18px 40px rgba(8, 15, 26, 0.24);
+  --shadow-gold: 0 10px 28px var(--brand-gold-glow);
   --radius-card: 16px;
   --radius-button: 12px;
   --radius-input: 12px;
@@ -65,6 +73,7 @@ h6 {
   font-family: var(--font-display), var(--font-inter), system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: var(--neutral-ink-900);
   margin-top: 0;
+  letter-spacing: -0.02em;
 }
 a {
   color: inherit;
@@ -279,10 +288,10 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(11, 28, 44, 0.95);
-  backdrop-filter: blur(8px);
+  background: rgba(8, 15, 26, 0.96);
+  backdrop-filter: blur(10px);
   color: var(--neutral-white);
-  box-shadow: 0 6px 18px rgba(11, 28, 44, 0.2);
+  box-shadow: 0 1px 0 rgba(201, 162, 39, 0.15), 0 6px 24px rgba(8, 15, 26, 0.3);
 }
 
 .header-inner {
@@ -311,7 +320,7 @@ button {
 }
 
 .button-primary {
-  background: var(--brand-blue-600);
+  background: var(--brand-teal-500);
   color: var(--neutral-white);
   padding: 12px 20px;
   border: none;
@@ -319,13 +328,13 @@ button {
   font-weight: 600;
   cursor: pointer;
   transition: transform 200ms ease, box-shadow 200ms ease, background 200ms ease;
-  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 10px 24px var(--brand-teal-glow);
 }
 
 .button-primary:hover {
-  background: var(--brand-blue-700);
+  background: var(--brand-teal-600);
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 14px 32px var(--brand-teal-glow);
 }
 
 .button-secondary {
@@ -400,7 +409,8 @@ button {
 }
 
 .hero-text h1 span {
-  color: #79a6ff;
+  color: #5eead4;
+  font-style: italic;
 }
 
 .hero-pill {
@@ -409,10 +419,13 @@ button {
   gap: 8px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(13, 148, 136, 0.15);
+  border: 1px solid rgba(13, 148, 136, 0.4);
   font-size: 13px;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #5eead4;
   margin-bottom: 16px;
 }
 
@@ -560,7 +573,7 @@ button {
 
 .hero-card-progress-fill {
   height: 100%;
-  background: var(--brand-blue-600);
+  background: var(--brand-teal-500);
   transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -571,13 +584,13 @@ button {
 }
 
 .hero-card-active {
-  border-color: rgba(37, 99, 235, 0.3);
-  box-shadow: var(--shadow-elevated), 0 0 0 1px rgba(37, 99, 235, 0.15);
+  border-color: rgba(13, 148, 136, 0.35);
+  box-shadow: var(--shadow-elevated), 0 0 0 1px rgba(13, 148, 136, 0.15);
 }
 
 .hero-card-image-live {
   background-image: none;
-  background: linear-gradient(155deg, #0b1c2c 0%, #1a3a5c 40%, #2563eb 100%);
+  background: linear-gradient(155deg, #080f1a 0%, #042f2e 50%, #0d9488 100%);
 }
 
 .hero-card-live-badge {
@@ -614,8 +627,8 @@ button {
   display: block;
   margin-top: 4px;
   padding: 9px 14px;
-  background: var(--brand-blue-600);
-  color: white;
+  background: var(--brand-teal-500);
+  color: var(--neutral-white);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 700;
@@ -625,7 +638,7 @@ button {
 }
 
 .hero-card-resume-btn:hover {
-  background: var(--brand-blue-700);
+  background: var(--brand-teal-600);
   transform: translateY(-1px);
 }
 
@@ -672,9 +685,10 @@ button {
 }
 
 .cta-band {
-  background: var(--brand-navy-900);
+  background: linear-gradient(135deg, #080f1a 0%, #0b1c2c 70%, #042f2e 100%);
   color: var(--neutral-white);
   padding: 56px 0;
+  border-top: 1px solid rgba(13, 148, 136, 0.2);
 }
 
 .cta-band-inner {
@@ -894,8 +908,8 @@ button {
 
 .stepper-fill {
   height: 100%;
-  background: var(--brand-blue-600);
-  transition: width 200ms ease;
+  background: linear-gradient(90deg, var(--brand-teal-600), var(--brand-teal-500));
+  transition: width 300ms ease;
 }
 
 .stepper-steps {
@@ -926,14 +940,14 @@ button {
 }
 
 .step-indicator.complete {
-  background: var(--brand-blue-600);
-  border-color: var(--brand-blue-600);
+  background: var(--brand-teal-500);
+  border-color: var(--brand-teal-500);
   color: var(--neutral-white);
 }
 
 .step-indicator.active {
-  border-color: var(--brand-blue-600);
-  color: var(--brand-blue-600);
+  border-color: #5eead4;
+  color: #5eead4;
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -966,7 +980,7 @@ button {
 
 .intake-card-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--brand-blue-600), #60a5fa);
+  background: linear-gradient(90deg, var(--brand-teal-600), var(--brand-teal-500));
   border-radius: 999px;
   transition: width 350ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1518,13 +1532,13 @@ button {
 }
 
 .segmented-control button.active {
-  background: var(--brand-blue-600);
+  background: var(--brand-teal-500);
   color: var(--neutral-white);
-  border-color: var(--brand-blue-600);
+  border-color: var(--brand-teal-500);
 }
 
 .segmented-control button:hover {
-  border-color: var(--brand-blue-600);
+  border-color: var(--brand-teal-500);
   transform: scale(1.02);
 }
 
@@ -3367,7 +3381,7 @@ button {
 
 /* ── Deeper section-alt ── */
 .section-alt {
-  background: #e8ecf2 !important;
+  background: #f5f0e8 !important;
 }
 
 /* ── Header scroll enhancement ── */
@@ -3407,7 +3421,7 @@ button {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: var(--brand-navy-900);
+  background: var(--brand-teal-500);
   color: var(--neutral-white);
   display: flex;
   align-items: center;
@@ -3415,7 +3429,7 @@ button {
   font-weight: 700;
   font-size: 16px;
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(11, 28, 44, 0.2);
+  box-shadow: 0 4px 16px var(--brand-teal-glow);
 }
 
 .timeline-connector {
@@ -3516,7 +3530,7 @@ button {
 
 /* ── Metrics cards: accent line instead of emoji ── */
 .metrics-card {
-  border-top: 3px solid var(--brand-blue-600) !important;
+  border-top: 3px solid var(--brand-teal-500) !important;
   padding-top: 22px !important;
 }
 
@@ -3553,22 +3567,22 @@ button {
 /* Metrics cards */
 .metrics-card:hover {
   transform: translateY(-8px) !important;
-  box-shadow: 0 24px 48px rgba(11, 28, 44, 0.13),
-              0 4px 12px rgba(37, 99, 235, 0.1) !important;
-  border-top-color: var(--brand-blue-700) !important;
+  box-shadow: 0 24px 48px rgba(8, 15, 26, 0.13),
+              0 4px 16px var(--brand-teal-glow) !important;
+  border-top-color: var(--brand-teal-600) !important;
 }
 
 .metrics-card:hover h3 {
-  color: var(--brand-blue-600);
+  color: var(--brand-teal-500);
   transition: color 200ms ease;
 }
 
 /* Testimonial cards */
 .testimonial-card:hover {
   transform: translateY(-8px) !important;
-  box-shadow: 0 24px 48px rgba(11, 28, 44, 0.13),
-              0 4px 12px rgba(37, 99, 235, 0.08) !important;
-  border-color: rgba(37, 99, 235, 0.2) !important;
+  box-shadow: 0 24px 48px rgba(8, 15, 26, 0.13),
+              0 4px 12px var(--brand-teal-glow) !important;
+  border-color: rgba(13, 148, 136, 0.2) !important;
 }
 
 .testimonial-card:hover .testimonial-avatar {
@@ -4817,8 +4831,8 @@ button {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--brand-blue-600);
-  box-shadow: 0 0 6px rgba(37,99,235,0.6);
+  background: var(--brand-teal-500);
+  box-shadow: 0 0 8px var(--brand-teal-glow);
 }
 
 .admin-nav-sep { color: rgba(255,255,255,0.25); margin: 0 2px; }
@@ -4963,20 +4977,20 @@ button {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: var(--brand-blue-600);
-  color: white;
+  background: var(--brand-teal-500);
+  color: var(--neutral-white);
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 20px var(--brand-teal-glow);
   display: grid;
   place-items: center;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
 
 .chatbot-trigger:hover {
-  background: var(--brand-blue-700);
+  background: var(--brand-teal-600);
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(37, 99, 235, 0.55);
+  box-shadow: 0 6px 28px rgba(13, 148, 136, 0.5);
 }
 
 .chatbot-trigger-icon {
