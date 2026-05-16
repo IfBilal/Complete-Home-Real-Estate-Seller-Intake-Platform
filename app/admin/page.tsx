@@ -226,7 +226,7 @@ export default function AdminPage() {
   const newCount = records.filter(r => r.isNew).length;
 
   const AVATAR_PALETTE = [
-    { bg: "rgba(13,148,136,0.22)", fg: "#5eead4" },
+    { bg: "rgba(232,84,26,0.22)", fg: "#FDBA74" },
     { bg: "rgba(99,102,241,0.22)", fg: "#a5b4fc" },
     { bg: "rgba(245,158,11,0.22)", fg: "#fcd34d" },
     { bg: "rgba(236,72,153,0.20)", fg: "#f9a8d4" },

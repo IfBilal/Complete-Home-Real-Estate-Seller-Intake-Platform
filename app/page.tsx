@@ -1,5 +1,6 @@
 import FAQAccordion from "../components/FAQAccordion";
 import HeroResumeCard from "../components/HeroResumeCard";
+import CountUp from "../components/CountUp";
 
 export default function Home() {
   return (
@@ -63,24 +64,25 @@ export default function Home() {
       <section className="section section-alt">
         <div className="container">
           <div className="section-header reveal">
+            <p className="section-eyebrow">Track Record</p>
             <h2>Proven results across 48 states</h2>
             <p>Clear timelines and consistent outcomes for every homeowner.</p>
           </div>
           <div className="metrics-grid">
             <div className="metrics-card reveal" style={{ "--delay": "80ms" } as React.CSSProperties}>
-              <h3>470+</h3>
+              <h3><CountUp target={470} suffix="+" /></h3>
               <p>Verified property reviews</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "140ms" } as React.CSSProperties}>
-              <h3>48</h3>
+              <h3><CountUp target={48} /></h3>
               <p>States covered</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "200ms" } as React.CSSProperties}>
-              <h3>48h</h3>
+              <h3><CountUp target={48} suffix="h" /></h3>
               <p>Average offer turnaround</p>
             </div>
             <div className="metrics-card reveal" style={{ "--delay": "260ms" } as React.CSSProperties}>
-              <h3>$0</h3>
+              <h3>$<CountUp target={0} /></h3>
               <p>Cost to get reviewed</p>
             </div>
           </div>
@@ -90,6 +92,7 @@ export default function Home() {
       <section id="how-it-works" className="section">
         <div className="container">
           <div className="section-header reveal">
+            <p className="section-eyebrow">Simple Process</p>
             <h2>How it works</h2>
             <p>Three steps. No appointments, no strangers in your home.</p>
           </div>
@@ -154,6 +157,7 @@ export default function Home() {
       <section className="section">
         <div className="container">
           <div className="section-header reveal">
+            <p className="section-eyebrow">Testimonials</p>
             <h2>What homeowners say</h2>
             <p>Real sellers. Real results.</p>
           </div>
