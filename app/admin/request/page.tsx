@@ -38,7 +38,7 @@ export default function AdminRequestPage() {
         <div className="admin-request-card">
           <div className="admin-request-success-icon">✓</div>
           <h2 className="admin-request-title">Request Submitted</h2>
-          <p className="admin-request-sub">An existing admin will review your request. You'll be able to log in once approved.</p>
+          <p className="admin-request-sub">An existing admin will review your request. You&apos;ll be able to log in once approved.</p>
         </div>
       </div>
     );

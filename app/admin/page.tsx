@@ -112,7 +112,7 @@ export default function AdminPage() {
     const delay = searchQuery ? 400 : 0;
     const t = setTimeout(fetchList, delay);
     return () => clearTimeout(t);
-  }, [fetchList]);
+  }, [fetchList, searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Fetch detail when selectedId changes
@@ -685,7 +685,7 @@ export default function AdminPage() {
               ) : (
                 !aiLoading && (
                   <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>
-                    No summary yet. Click "Generate AI Summary" to analyze this submission.
+                    No summary yet. Click &quot;Generate AI Summary&quot; to analyze this submission.
                   </p>
                 )
               )}

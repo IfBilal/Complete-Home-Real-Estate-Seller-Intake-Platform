@@ -1043,7 +1043,7 @@ export default function IntakePage() {
                 <div className="rooms-step">
                   <div className="section-header">
                     <h3>Select rooms and areas</h3>
-                    <p>We'll generate upload slots for every room you select.</p>
+                    <p>We&apos;ll generate upload slots for every room you select.</p>
                   </div>
                   <div className="room-grid">
                     {roomOptions.map(room => {
