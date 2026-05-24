@@ -897,7 +897,7 @@ export default function IntakePage() {
                     <div className={`property-card${isConfirmed ? " confirmed" : ""}`}>
                       {/* Street View image */}
                       {exteriorImageUrl ? (
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={exteriorImageUrl}
                           alt="Street view"
