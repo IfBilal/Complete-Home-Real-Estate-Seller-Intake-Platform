@@ -1,175 +1,179 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-const QUESTIONS = [
-  {
-    id: "ownership",
-    bot: "Do you currently own this property?",
-    options: ["Yes, I own it", "I'm a co-owner", "No"]
-  },
-  {
-    id: "timeline",
-    bot: "What's your ideal timeline to sell?",
-    options: ["As soon as possible", "Within 30 days", "30–90 days", "Just exploring options"]
-  },
-  {
-    id: "motivation",
-    bot: "What's the main reason for selling?",
-    options: ["Relocation", "Financial need", "Downsizing", "Estate or inheritance", "Other"]
-  },
-  {
-    id: "mortgage",
-    bot: "Is there an active mortgage on the property?",
-    options: ["Yes", "No — owned free and clear", "Not sure"]
-  },
-  {
-    id: "liens",
-    bot: "Are there any liens or judgments on the property?",
-    options: ["No", "Yes", "I'm not sure"]
-  },
-  {
-    id: "occupancy",
-    bot: "Is the property currently occupied?",
-    options: ["I live there", "Tenants are living there", "It's vacant"]
-  },
-  {
-    id: "offer_type",
-    bot: "Are you open to different offer structures?",
-    options: ["Cash offer only", "Open to all options", "Prefer a traditional MLS listing"]
-  }
-];
-
-const DONE_MESSAGE =
-  "Thanks! Your answers have been saved and will be included with your submission. Our team reviews these before reaching out. 🏡";
+const PREQUAL_KEYS = ["ownership", "timeline", "motivation", "mortgage", "liens", "occupancy", "offer_type"] as const;
+const TOTAL_PREQUAL = PREQUAL_KEYS.length;
 
 interface Message {
-  from: "bot" | "user";
-  text: string;
+  role: "user" | "assistant";
+  content: string;
 }
 
-export default function IntakeChatbot() {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      from: "bot",
-      text: "Hi! I have 7 quick questions that help our team prepare a better review for your property. Want to start?"
-    }
-  ]);
-  const [qIndex, setQIndex] = useState(-1);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [typing, setTyping] = useState(false);
-  const [done, setDone] = useState(false);
-  const [unread, setUnread] = useState(1);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+interface Props {
+  currentStep?: number;
+}
 
-  // Auto-scroll to bottom when messages change
+export default function IntakeChatbot({ currentStep = 0 }: Props) {
+  const [open,           setOpen]           = useState(false);
+  const [messages,       setMessages]       = useState<Message[]>([]);
+  const [input,          setInput]          = useState("");
+  const [isTyping,       setIsTyping]       = useState(false);
+  const [prequalAnswers, setPrequalAnswers] = useState<Record<string, string>>({});
+  const [unread,         setUnread]         = useState(0);
+  const [hasInited,      setHasInited]      = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef       = useRef<HTMLInputElement>(null);
+
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, typing]);
-
-  // Clear unread when opened
-  useEffect(() => {
-    if (open) setUnread(0);
-  }, [open]);
+  }, [messages, isTyping]);
 
   // Load saved answers on mount
   useEffect(() => {
     try {
       const saved = localStorage.getItem("ch_prequal_answers");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Object.keys(parsed).length === QUESTIONS.length) {
-          setAnswers(parsed);
-          setDone(true);
-          setQIndex(QUESTIONS.length);
-          setUnread(0);
-        }
-      }
-    } catch {
-      // ignore
-    }
+      if (saved) setPrequalAnswers(JSON.parse(saved));
+    } catch { /* ignore */ }
   }, []);
 
-  const pushBotMessage = (text: string, delay = 800) => {
-    setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      setMessages(prev => [...prev, { from: "bot", text }]);
-      if (!open) setUnread(prev => prev + 1);
-    }, delay);
-  };
+  // Auto-generate opening message the first time the panel is opened
+  useEffect(() => {
+    if (!open || hasInited) return;
+    setHasInited(true);
+    setUnread(0);
+    setIsTyping(true);
 
-  const handleChoice = (choice: string) => {
-    // Intro screen
-    if (qIndex === -1) {
-      if (choice === "Maybe later") {
-        setOpen(false);
+    const savedAnswers: Record<string, string> = (() => {
+      try { return JSON.parse(localStorage.getItem("ch_prequal_answers") ?? "{}"); } catch { return {}; }
+    })();
+
+    fetch("/api/chatbot", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages:         [{ role: "user", content: "__INIT__" }],
+        collectedPrequal: savedAnswers,
+        currentStep,
+        isInit:           true,
+      }),
+    })
+      .then(r => r.json().catch(() => ({})))
+      .then(json => {
+        const reply: string = json?.data?.reply ?? "Hi! I'm your Complete Home assistant — ask me anything about the form, or I'll ask you a few quick questions as we go.";
+        setMessages([{ role: "assistant", content: reply }]);
+        if (!open) setUnread(1);
+      })
+      .catch(() => {
+        setMessages([{ role: "assistant", content: "Hi! I'm your Complete Home assistant — ask me anything about the form." }]);
+      })
+      .finally(() => setIsTyping(false));
+  }, [open, hasInited, currentStep]);
+
+  // Clear unread + focus input when opened
+  useEffect(() => {
+    if (open) {
+      setUnread(0);
+      setTimeout(() => inputRef.current?.focus(), 80);
+    }
+  }, [open]);
+
+  const collectedCount = Object.keys(prequalAnswers).length;
+  const done           = collectedCount >= TOTAL_PREQUAL;
+
+  const sendMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isTyping) return;
+
+    const userMessage: Message = { role: "user", content: trimmed };
+    const nextMessages = [...messages, userMessage];
+    setMessages(nextMessages);
+    setInput("");
+    setIsTyping(true);
+
+    try {
+      const res = await fetch("/api/chatbot", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages:         nextMessages.slice(-12),
+          collectedPrequal: prequalAnswers,
+          currentStep,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.success) {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "Sorry, I'm having trouble right now. Please try again in a moment.",
+        }]);
         return;
       }
-      setMessages(prev => [...prev, { from: "user", text: "Yes, let's start!" }]);
-      setQIndex(0);
-      pushBotMessage(QUESTIONS[0].bot);
-      return;
+
+      const { reply, prequalAnswers: newAnswers } = json.data as {
+        reply: string;
+        prequalAnswers: Record<string, string>;
+      };
+
+      // Merge newly detected pre-qual answers
+      if (newAnswers && Object.keys(newAnswers).length > 0) {
+        setPrequalAnswers(prev => {
+          const merged = { ...prev, ...newAnswers };
+          try { localStorage.setItem("ch_prequal_answers", JSON.stringify(merged)); } catch { /* ignore */ }
+          return merged;
+        });
+      }
+
+      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      if (!open) setUnread(prev => prev + 1);
+    } catch {
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "Connection issue — please try again.",
+      }]);
+    } finally {
+      setIsTyping(false);
     }
+  }, [messages, prequalAnswers, currentStep, isTyping, open]);
 
-    // Active question
-    const question = QUESTIONS[qIndex];
-    const newAnswers = { ...answers, [question.id]: choice };
-    setAnswers(newAnswers);
-    setMessages(prev => [...prev, { from: "user", text: choice }]);
-
-    const nextIndex = qIndex + 1;
-
-    if (nextIndex >= QUESTIONS.length) {
-      // All done
-      localStorage.setItem("ch_prequal_answers", JSON.stringify(newAnswers));
-      setDone(true);
-      setQIndex(nextIndex);
-      pushBotMessage(DONE_MESSAGE);
-    } else {
-      setQIndex(nextIndex);
-      pushBotMessage(QUESTIONS[nextIndex].bot);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(input);
     }
   };
-
-  const currentChoices = () => {
-    if (done) return [];
-    if (qIndex === -1) return ["Yes, let's start!", "Maybe later"];
-    if (qIndex < QUESTIONS.length) return QUESTIONS[qIndex].options;
-    return [];
-  };
-
-  const choices = currentChoices();
 
   return (
     <>
-      {/* Floating trigger button */}
+      {/* ── Floating trigger ── */}
       <button
         type="button"
         className="chatbot-trigger"
-        aria-label={open ? "Close chat" : "Open pre-qualification chat"}
+        aria-label={open ? "Close assistant" : "Open assistant"}
         onClick={() => setOpen(prev => !prev)}
       >
-        {open ? (
-          <span className="chatbot-trigger-icon">×</span>
-        ) : (
-          <span className="chatbot-trigger-icon">💬</span>
-        )}
+        {open
+          ? <span className="chatbot-trigger-icon">×</span>
+          : <span className="chatbot-trigger-icon">💬</span>
+        }
         {!open && done && (
           <span className="chatbot-badge chatbot-badge-done">✓</span>
         )}
-        {!open && !done && Object.keys(answers).length > 0 && (
-          <span className="chatbot-badge chatbot-badge-progress">{Object.keys(answers).length}/{QUESTIONS.length}</span>
+        {!open && !done && collectedCount > 0 && (
+          <span className="chatbot-badge chatbot-badge-progress">{collectedCount}/{TOTAL_PREQUAL}</span>
         )}
-        {!open && !done && Object.keys(answers).length === 0 && unread > 0 && (
+        {!open && !done && collectedCount === 0 && unread > 0 && (
           <span className="chatbot-badge">{unread}</span>
         )}
       </button>
 
-      {/* Chat panel */}
+      {/* ── Chat panel ── */}
       {open && (
-        <div className="chatbot-panel" role="dialog" aria-label="Pre-qualification assistant">
+        <div className="chatbot-panel" role="dialog" aria-label="Complete Home Assistant">
+
           {/* Header */}
           <div className="chatbot-header">
             <div className="chatbot-header-avatar">🏠</div>
@@ -184,37 +188,37 @@ export default function IntakeChatbot() {
               type="button"
               className="chatbot-close-btn"
               onClick={() => setOpen(false)}
-              aria-label="Close chat"
-            >
-              ×
-            </button>
+              aria-label="Close"
+            >×</button>
           </div>
 
-          {/* Progress bar */}
-          {!done && qIndex >= 0 && (
-            <div className="chatbot-progress-bar">
-              <div
-                className="chatbot-progress-fill"
-                style={{ width: `${Math.round((qIndex / QUESTIONS.length) * 100)}%` }}
-              />
+          {/* Pre-qual progress bar */}
+          <div className="chatbot-progress-bar">
+            <div
+              className="chatbot-progress-fill"
+              style={{ width: `${Math.round((collectedCount / TOTAL_PREQUAL) * 100)}%` }}
+            />
+          </div>
+
+          {collectedCount > 0 && (
+            <div className="chatbot-counter">
+              {done
+                ? "Pre-qualification complete ✓"
+                : `Pre-qualification: ${collectedCount} / ${TOTAL_PREQUAL}`}
             </div>
           )}
-          {done && <div className="chatbot-progress-bar"><div className="chatbot-progress-fill" style={{ width: "100%" }} /></div>}
 
           {/* Messages */}
           <div className="chatbot-messages">
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`chatbot-message-row${msg.from === "user" ? " user-row" : ""}`}
-              >
-                <div className={msg.from === "bot" ? "bot-bubble" : "user-bubble"}>
-                  {msg.text}
+              <div key={i} className={`chatbot-message-row${msg.role === "user" ? " user-row" : ""}`}>
+                <div className={msg.role === "assistant" ? "bot-bubble" : "user-bubble"}>
+                  {msg.content}
                 </div>
               </div>
             ))}
 
-            {typing && (
+            {isTyping && (
               <div className="chatbot-message-row">
                 <div className="bot-bubble typing-indicator">
                   <span className="typing-dot" />
@@ -227,35 +231,28 @@ export default function IntakeChatbot() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Question counter */}
-          {!done && qIndex >= 0 && (
-            <div className="chatbot-counter">
-              Question {qIndex + 1} of {QUESTIONS.length}
-            </div>
-          )}
+          {/* Text input */}
+          <div className="chatbot-input-row">
+            <input
+              ref={inputRef}
+              type="text"
+              className="chatbot-input"
+              placeholder="Ask anything…"
+              value={input}
+              maxLength={500}
+              disabled={isTyping}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button
+              type="button"
+              className="chatbot-send-btn"
+              disabled={isTyping || !input.trim()}
+              onClick={() => sendMessage(input)}
+              aria-label="Send"
+            >↑</button>
+          </div>
 
-          {/* Choice buttons */}
-          {choices.length > 0 && !typing && (
-            <div className="chatbot-choices">
-              {choices.map(choice => (
-                <button
-                  key={choice}
-                  type="button"
-                  className={`chat-choice-btn${choice === "Maybe later" ? " chat-choice-secondary" : ""}`}
-                  onClick={() => handleChoice(choice)}
-                >
-                  {choice}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {done && (
-            <div className="chatbot-done-footer">
-              <span className="chatbot-done-check">✓</span>
-              All questions answered — saved to your submission.
-            </div>
-          )}
         </div>
       )}
     </>

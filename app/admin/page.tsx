@@ -1,274 +1,295 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { getRoomSignal, getSignalLabel, getOverview, getFlags, getAssessment } from "../../lib/aiSummary";
-
-interface Submission {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  address: string;
-  date: string;
-  submittedAt: string;
-  status: "New" | "Reviewing" | "Offer Made" | "Closed";
-  isNew: boolean;
-  sqft: string;
-  beds: number | null;
-  baths: number | null;
-  yearBuilt: string;
-  lotSize: string;
-  condition: string;
-  rooms: string[];
-  prequalAnswers: Record<string, string>;
-}
-
-const MOCK_SUBMISSIONS: Submission[] = [
-  {
-    id: "MS-1021",
-    name: "Jordan Lee",
-    email: "jordan.lee@email.com",
-    phone: "(512) 555-0182",
-    address: "123 Willow Lane, Austin TX",
-    date: "May 10, 2026",
-    submittedAt: "2026-05-10T14:23:00Z",
-    status: "New",
-    isNew: false,
-    sqft: "2,140",
-    beds: 4,
-    baths: 3,
-    yearBuilt: "2008",
-    lotSize: "0.23 ac",
-    condition: "Good",
-    rooms: ["Kitchen", "Living Room", "Bedroom 1", "Bedroom 2", "Bathroom 1", "Exterior"],
-    prequalAnswers: {
-      ownership: "Yes, I own it",
-      timeline: "Within 30 days",
-      motivation: "Relocation",
-      mortgage: "Yes",
-      liens: "No",
-      occupancy: "I live there",
-      offer_type: "Open to all options"
-    }
-  },
-  {
-    id: "MS-1022",
-    name: "Samira Khan",
-    email: "samira.khan@email.com",
-    phone: "(214) 555-0341",
-    address: "88 Brookview Dr, Dallas TX",
-    date: "May 09, 2026",
-    submittedAt: "2026-05-09T10:15:00Z",
-    status: "Reviewing",
-    isNew: false,
-    sqft: "1,860",
-    beds: 3,
-    baths: 2,
-    yearBuilt: "2012",
-    lotSize: "0.19 ac",
-    condition: "Fair",
-    rooms: ["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Garage"],
-    prequalAnswers: {
-      ownership: "Yes, I own it",
-      timeline: "30–90 days",
-      motivation: "Financial need",
-      mortgage: "Yes",
-      liens: "No",
-      occupancy: "I live there",
-      offer_type: "Cash offer only"
-    }
-  },
-  {
-    id: "MS-1023",
-    name: "Miguel Torres",
-    address: "410 Lake Crest Rd, Houston TX",
-    date: "May 08, 2026",
-    submittedAt: "2026-05-08T09:05:00Z",
-    status: "Offer Made",
-    isNew: false,
-    sqft: "2,980",
-    beds: 5,
-    baths: 4,
-    yearBuilt: "2016",
-    lotSize: "0.31 ac",
-    condition: "Good",
-    rooms: ["Kitchen", "Living Room", "Bedroom 1", "Bedroom 2", "Bedroom 3", "Bathroom 1", "Bathroom 2", "Exterior", "Backyard"],
-    prequalAnswers: {
-      ownership: "Yes, I own it",
-      timeline: "As soon as possible",
-      motivation: "Downsizing",
-      mortgage: "No — owned free and clear",
-      liens: "No",
-      occupancy: "I live there",
-      offer_type: "Open to all options"
-    }
-  },
-  {
-    id: "MS-1024",
-    name: "Alyssa Park",
-    address: "19 Oak Terrace, Austin TX",
-    date: "May 07, 2026",
-    submittedAt: "2026-05-07T16:45:00Z",
-    status: "Closed",
-    isNew: false,
-    sqft: "1,540",
-    beds: 3,
-    baths: 2,
-    yearBuilt: "2005",
-    lotSize: "0.15 ac",
-    condition: "Fair",
-    rooms: ["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Exterior"],
-    prequalAnswers: {
-      ownership: "I'm a co-owner",
-      timeline: "Just exploring options",
-      motivation: "Estate or inheritance",
-      mortgage: "Not sure",
-      liens: "I'm not sure",
-      occupancy: "It's vacant",
-      offer_type: "Prefer a traditional MLS listing"
-    }
-  }
-];
+import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch, ApiError } from "../../lib/client/apiClient";
+import type {
+  AdminSubmissionListItem,
+  AdminSubmissionDetail,
+  AISummary,
+  InternalNote,
+  SubmissionStatus,
+} from "../../lib/types";
 
 const PREQUAL_LABELS: Record<string, string> = {
-  ownership: "Property Ownership",
-  timeline: "Sale Timeline",
+  ownership:  "Property Ownership",
+  timeline:   "Sale Timeline",
   motivation: "Reason for Selling",
-  mortgage: "Mortgage Status",
-  liens: "Liens / Judgments",
-  occupancy: "Occupancy",
-  offer_type: "Offer Preference"
+  mortgage:   "Mortgage Status",
+  liens:      "Liens / Judgments",
+  occupancy:  "Occupancy",
+  offer_type: "Offer Preference",
 };
 
-function isWithinDays(isoString: string, days: number): boolean {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diff = (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24);
-  return diff <= days;
+const AVATAR_PALETTE = [
+  { bg: "rgba(232,84,26,0.22)",  fg: "#FDBA74" },
+  { bg: "rgba(99,102,241,0.22)", fg: "#a5b4fc" },
+  { bg: "rgba(245,158,11,0.22)", fg: "#fcd34d" },
+  { bg: "rgba(236,72,153,0.20)", fg: "#f9a8d4" },
+  { bg: "rgba(16,185,129,0.20)", fg: "#86efac" },
+  { bg: "rgba(249,115,22,0.20)", fg: "#fdba74" },
+];
+
+const PIPELINE_STEPS = ["New", "Reviewing", "Offer Made", "Closed"] as const;
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export default function AdminPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [cityFilter, setCityFilter] = useState("All");
-  const [dateFilter, setDateFilter] = useState("All Time");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [records, setRecords] = useState<Submission[]>(MOCK_SUBMISSIONS);
-  const [selectedId, setSelectedId] = useState(MOCK_SUBMISSIONS[0].id);
-  const [noteText, setNoteText] = useState("");
-  const [noteSaved, setNoteSaved] = useState(false);
+  const router = useRouter();
 
-  useEffect(() => {
+  // ── List
+  const [isLoading,  setIsLoading]  = useState(true);
+  const [loadError,  setLoadError]  = useState<string | null>(null);
+  const [records,    setRecords]    = useState<AdminSubmissionListItem[]>([]);
+
+  // ── Filters
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [cityFilter,   setCityFilter]   = useState("All");
+  const [dateFilter,   setDateFilter]   = useState("All Time");
+  const [searchQuery,  setSearchQuery]  = useState("");
+
+  // ── Detail
+  const [selectedId,    setSelectedId]    = useState<string | null>(null);
+  const [detail,        setDetail]        = useState<AdminSubmissionDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  // ── Notes
+  const [noteText,  setNoteText]  = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSaved,  setNoteSaved]  = useState(false);
+
+  // ── Status
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  // ── AI summary
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError,   setAiError]   = useState<string | null>(null);
+
+  // ── Admin management view
+  const [activeView,      setActiveView]      = useState<"submissions" | "admins">("submissions");
+  const [adminList,       setAdminList]       = useState<{ id: string; email: string; role: string; created_at: string }[]>([]);
+  const [currentAdminEmail, setCurrentAdminEmail] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<{ id: string; email: string; created_at: string }[]>([]);
+  const [adminViewLoading, setAdminViewLoading] = useState(false);
+  const [removingId,      setRemovingId]      = useState<string | null>(null);
+  const [actioningReqId,  setActioningReqId]  = useState<string | null>(null);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Fetch list (re-runs on filter changes)
+  // ─────────────────────────────────────────────────────────────────────────────
+  const fetchList = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
     try {
-      const raw = localStorage.getItem("ch_submissions");
-      if (raw) {
-        const stored: Submission[] = JSON.parse(raw);
-        setRecords(prev => {
-          const existingIds = new Set(prev.map(r => r.id));
-          const newOnes = stored.filter(r => !existingIds.has(r.id));
-          if (newOnes.length === 0) return prev;
-          const merged = [...newOnes, ...prev];
-          setSelectedId(newOnes[0].id);
-          return merged;
-        });
+      const params = new URLSearchParams();
+      if (statusFilter !== "All")    params.set("status", statusFilter);
+      if (cityFilter   !== "All")    params.set("city",   cityFilter);
+      if (dateFilter   !== "All Time") params.set("date", dateFilter);
+      if (searchQuery)               params.set("q",      searchQuery);
+
+      const data = await apiFetch<{ items: AdminSubmissionListItem[]; total: number }>(
+        `/api/admin/submissions?${params}`
+      );
+      setRecords(data.items);
+      const ids = new Set(data.items.map(i => i.id));
+      setSelectedId(prev => (prev && ids.has(prev)) ? prev : (data.items[0]?.id ?? null));
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        router.push("/admin/login?redirect=/admin");
+        return;
       }
-    } catch {
-      // ignore
+      setLoadError("Failed to load submissions.");
+    } finally {
+      setIsLoading(false);
     }
+  }, [statusFilter, cityFilter, dateFilter, searchQuery, router]);
+
+  // Debounce typing; immediate for filter changes
+  useEffect(() => {
+    const delay = searchQuery ? 400 : 0;
+    const t = setTimeout(fetchList, delay);
+    return () => clearTimeout(t);
+  }, [fetchList]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Fetch detail when selectedId changes
+  // ─────────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!selectedId) return;
+    setDetailLoading(true);
+    setDetail(null);
+    setNoteText("");
+    setAiError(null);
+    apiFetch<AdminSubmissionDetail>(`/api/admin/submissions/${selectedId}`)
+      .then(d => {
+        setDetail(d);
+        setRecords(prev => prev.map(r => r.id === selectedId ? { ...r, is_new: false } : r));
+      })
+      .catch(e => {
+        if (e instanceof ApiError && e.status === 401) router.push("/admin/login?redirect=/admin");
+      })
+      .finally(() => setDetailLoading(false));
+  }, [selectedId, router]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Actions
+  // ─────────────────────────────────────────────────────────────────────────────
+  const handleStatusChange = useCallback(async (status: SubmissionStatus) => {
+    if (!selectedId || statusSaving) return;
+    setStatusSaving(true);
+    try {
+      await apiFetch(`/api/admin/submissions/${selectedId}`, {
+        method:  "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ status }),
+      });
+      setDetail(prev => prev ? { ...prev, status } : prev);
+      setRecords(prev => prev.map(r => r.id === selectedId ? { ...r, status } : r));
+    } catch { /* silent */ }
+    finally { setStatusSaving(false); }
+  }, [selectedId, statusSaving]);
+
+  const handleSaveNote = useCallback(async () => {
+    if (!selectedId || !noteText.trim() || noteSaving) return;
+    setNoteSaving(true);
+    try {
+      const result = await apiFetch<{ internal_notes: InternalNote[] }>(
+        `/api/admin/submissions/${selectedId}`,
+        {
+          method:  "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ noteText: noteText.trim() }),
+        }
+      );
+      setDetail(prev => prev
+        ? { ...prev, internal_notes: result.internal_notes ?? prev.internal_notes }
+        : prev
+      );
+      setNoteText("");
+      setNoteSaved(true);
+      setTimeout(() => setNoteSaved(false), 2000);
+    } catch { /* silent */ }
+    finally { setNoteSaving(false); }
+  }, [selectedId, noteText, noteSaving]);
+
+  const handleGenerateSummary = useCallback(async () => {
+    if (!selectedId || aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const result = await apiFetch<{ summary: AISummary }>(
+        `/api/admin/submissions/${selectedId}/summarize`,
+        { method: "POST" }
+      );
+      setDetail(prev => prev
+        ? { ...prev, ai_summary: result.summary, ai_generated_at: new Date().toISOString() }
+        : prev
+      );
+    } catch (e) {
+      setAiError(e instanceof ApiError ? e.message : "AI summary failed.");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [selectedId, aiLoading]);
+
+  const handleSignOut = useCallback(async () => {
+    try { await fetch("/api/admin/auth/logout", { method: "POST" }); } catch { /* ignore */ }
+    router.push("/admin/login");
+  }, [router]);
+
+  const fetchAdminView = useCallback(async () => {
+    setAdminViewLoading(true);
+    try {
+      const [adminsData, reqsData] = await Promise.all([
+        apiFetch<{ admins: typeof adminList; currentEmail: string | null }>("/api/admin/admins"),
+        apiFetch<{ requests: typeof pendingRequests }>("/api/admin/requests"),
+      ]);
+      setAdminList(adminsData.admins);
+      setCurrentAdminEmail(adminsData.currentEmail ?? null);
+      setPendingRequests(reqsData.requests);
+    } catch { /* silent */ }
+    finally { setAdminViewLoading(false); }
   }, []);
 
-  const selectedRecord = records.find((item) => item.id === selectedId);
+  useEffect(() => {
+    if (activeView === "admins") fetchAdminView();
+  }, [activeView, fetchAdminView]);
 
+  const handleRequestAction = useCallback(async (id: string, action: "approve" | "reject") => {
+    setActioningReqId(id);
+    try {
+      await apiFetch(`/api/admin/requests/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      await fetchAdminView();
+    } catch { /* silent */ }
+    finally { setActioningReqId(null); }
+  }, [fetchAdminView]);
+
+  const handleRemoveAdmin = useCallback(async (id: string) => {
+    if (!confirm("Remove this admin? They will lose access immediately.")) return;
+    setRemovingId(id);
+    try {
+      await apiFetch(`/api/admin/admins/${id}`, { method: "DELETE" });
+      await fetchAdminView();
+    } catch { /* silent */ }
+    finally { setRemovingId(null); }
+  }, [fetchAdminView]);
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Derived values
+  // ─────────────────────────────────────────────────────────────────────────────
   const cities = useMemo(() => {
-    const citySet = new Set<string>();
-    records.forEach(r => {
-      const parts = r.address.split(",");
-      if (parts.length >= 2) {
-        const city = parts[1].trim().split(" ")[0];
-        if (city) citySet.add(city);
-      }
-    });
-    return Array.from(citySet).sort();
+    const set = new Set<string>();
+    records.forEach(r => { if (r.address_city) set.add(r.address_city); });
+    return Array.from(set).sort();
   }, [records]);
 
-  const filteredRecords = useMemo(() => {
-    return records.filter((item) => {
-      const matchesStatus = statusFilter === "All" || item.status === statusFilter;
-      const matchesQuery =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.address.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCity = cityFilter === "All" || item.address.includes(cityFilter);
-      const matchesDate =
-        dateFilter === "Today" ? isWithinDays(item.submittedAt, 1) :
-        dateFilter === "This Week" ? isWithinDays(item.submittedAt, 7) :
-        dateFilter === "This Month" ? isWithinDays(item.submittedAt, 30) :
-        true;
-      return matchesStatus && matchesQuery && matchesCity && matchesDate;
-    });
-  }, [records, statusFilter, searchQuery, cityFilter, dateFilter]);
+  const newCount      = records.filter(r => r.is_new).length;
+  const pipelineIndex = PIPELINE_STEPS.indexOf(detail?.status as typeof PIPELINE_STEPS[number]);
 
-  const handleSelectRecord = (id: string) => {
-    setSelectedId(id);
-    setNoteText("");
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, isNew: false } : r));
-    try {
-      const raw = localStorage.getItem("ch_submissions");
-      if (raw) {
-        const stored: Submission[] = JSON.parse(raw);
-        const updated = stored.map(r => r.id === id ? { ...r, isNew: false } : r);
-        localStorage.setItem("ch_submissions", JSON.stringify(updated));
+  const galleryByRoom = useMemo(() => {
+    if (!detail?.files) return {} as Record<string, AdminSubmissionDetail["files"]>;
+    const map: Record<string, AdminSubmissionDetail["files"]> = {};
+    for (const f of detail.files) {
+      if (f.file_type === "photo" && f.signed_url) {
+        (map[f.room] ??= []).push(f);
       }
-    } catch {
-      // ignore
     }
-  };
+    return map;
+  }, [detail]);
 
-  const newCount = records.filter(r => r.isNew).length;
-
-  const AVATAR_PALETTE = [
-    { bg: "rgba(232,84,26,0.22)", fg: "#FDBA74" },
-    { bg: "rgba(99,102,241,0.22)", fg: "#a5b4fc" },
-    { bg: "rgba(245,158,11,0.22)", fg: "#fcd34d" },
-    { bg: "rgba(236,72,153,0.20)", fg: "#f9a8d4" },
-    { bg: "rgba(16,185,129,0.20)", fg: "#86efac" },
-    { bg: "rgba(249,115,22,0.20)", fg: "#fdba74" },
-  ];
-
-  if (!isLoggedIn) {
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Loading / error screens
+  // ─────────────────────────────────────────────────────────────────────────────
+  if (isLoading && records.length === 0) {
     return (
-      <main className="container section">
-        <div className="login-shell">
-          <div className="login-card">
-            <div className="login-header">
-              <h1>Admin Access</h1>
-              <p>Sign in to view submissions and manage pipeline status.</p>
-            </div>
-            <div className="login-actions">
-              <a className="button-primary" href="/admin/login">
-                Go to Login
-              </a>
-              <button
-                className="button-secondary"
-                type="button"
-                onClick={() => setIsLoggedIn(true)}
-              >
-                Enter Demo Dashboard
-              </button>
-            </div>
-            <p className="login-note">
-              Demo only — no real authentication in this preview.
-            </p>
-          </div>
-        </div>
+      <main className="container section" style={{ textAlign: "center", paddingTop: "6rem" }}>
+        <p style={{ color: "var(--muted)" }}>Loading…</p>
       </main>
     );
   }
 
-  const PIPELINE_STEPS = ["New", "Reviewing", "Offer Made", "Closed"] as const;
-  const pipelineIndex = PIPELINE_STEPS.indexOf(selectedRecord?.status as typeof PIPELINE_STEPS[number]);
+  if (loadError) {
+    return (
+      <main className="container section" style={{ textAlign: "center", paddingTop: "6rem" }}>
+        <p style={{ color: "var(--error, #f87171)" }}>{loadError}</p>
+        <button className="button-primary" style={{ marginTop: "1rem" }} onClick={fetchList}>Retry</button>
+      </main>
+    );
+  }
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Main dashboard
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="admin-layout">
+
       {/* ── Sidebar ── */}
       <aside className="admin-sidebar">
         <div className="sidebar-brand">
@@ -278,7 +299,7 @@ export default function AdminPage() {
             <span className="sidebar-brand-sep">·</span>
             <span className="sidebar-brand-sub">Admin</span>
           </div>
-          <button className="sidebar-signout" type="button" onClick={() => setIsLoggedIn(false)}>
+          <button className="sidebar-signout" type="button" onClick={handleSignOut}>
             Sign out
           </button>
         </div>
@@ -329,25 +350,46 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* ── View switcher ── */}
+        <div className="sidebar-view-tabs">
+          <button
+            type="button"
+            className={`sidebar-view-tab${activeView === "submissions" ? " active" : ""}`}
+            onClick={() => setActiveView("submissions")}
+          >
+            Submissions
+          </button>
+          <button
+            type="button"
+            className={`sidebar-view-tab${activeView === "admins" ? " active" : ""}`}
+            onClick={() => setActiveView("admins")}
+          >
+            Admins
+            {pendingRequests.length > 0 && (
+              <span className="sidebar-view-badge">{pendingRequests.length}</span>
+            )}
+          </button>
+        </div>
+
         <div className="sidebar-records-header">
           Submissions
-          <span>{filteredRecords.length}</span>
+          <span>{records.length}</span>
         </div>
 
         <div className="sidebar-records">
-          {filteredRecords.length === 0 && (
+          {records.length === 0 && (
             <p className="sidebar-empty">No submissions match your filters.</p>
           )}
-          {filteredRecords.map(sub => {
-            const isActive = sub.id === selectedId;
-            const palette = AVATAR_PALETTE[sub.name.charCodeAt(0) % AVATAR_PALETTE.length];
+          {records.map(sub => {
+            const isActive  = sub.id === selectedId;
+            const palette   = AVATAR_PALETTE[sub.name.charCodeAt(0) % AVATAR_PALETTE.length];
             const statusKey = sub.status.toLowerCase().replace(" ", "-");
             return (
               <button
                 key={sub.id}
                 type="button"
                 className={`sidebar-record${isActive ? " active" : ""}`}
-                onClick={() => handleSelectRecord(sub.id)}
+                onClick={() => setSelectedId(sub.id)}
               >
                 <div
                   className="record-avatar"
@@ -357,12 +399,12 @@ export default function AdminPage() {
                 </div>
                 <div className="record-body">
                   <div className="record-name">
-                    {sub.isNew && <span className="admin-new-dot" />}
+                    {sub.is_new && <span className="admin-new-dot" />}
                     {sub.name}
                   </div>
                   <div className="record-addr">{sub.address}</div>
                   <div className="record-foot">
-                    <span>{sub.id}</span>
+                    <span>{sub.human_id}</span>
                     <span className={`record-status-text status-text-${statusKey}`}>{sub.status}</span>
                   </div>
                 </div>
@@ -374,29 +416,16 @@ export default function AdminPage() {
 
       {/* ── Main detail panel ── */}
       <main className="admin-main">
-        {/* Workspace header — always visible */}
         <div className="admin-workspace-header">
           <div className="admin-workspace-left">
             <p className="admin-workspace-eyebrow">Internal Review Workspace</p>
             <h1 className="admin-workspace-title">Seller Submissions</h1>
           </div>
           <div className="admin-workspace-right">
-            <div className="admin-workspace-stat">
-              <strong>{records.length}</strong>
-              <span>Total</span>
-            </div>
-            <div className="admin-workspace-stat">
-              <strong>{records.filter(r => r.status === "New").length}</strong>
-              <span>New</span>
-            </div>
-            <div className="admin-workspace-stat">
-              <strong>{records.filter(r => r.status === "Reviewing").length}</strong>
-              <span>Reviewing</span>
-            </div>
-            <div className="admin-workspace-stat">
-              <strong>{records.filter(r => r.status === "Offer Made").length}</strong>
-              <span>Offer Made</span>
-            </div>
+            <div className="admin-workspace-stat"><strong>{records.length}</strong><span>Total</span></div>
+            <div className="admin-workspace-stat"><strong>{records.filter(r => r.status === "New").length}</strong><span>New</span></div>
+            <div className="admin-workspace-stat"><strong>{records.filter(r => r.status === "Reviewing").length}</strong><span>Reviewing</span></div>
+            <div className="admin-workspace-stat"><strong>{records.filter(r => r.status === "Offer Made").length}</strong><span>Offer Made</span></div>
             {newCount > 0 && (
               <div className="admin-workspace-new">
                 <span className="admin-new-dot-pulse" />
@@ -406,22 +435,104 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {selectedRecord && (
+        {/* ── Admin management panel ── */}
+        {activeView === "admins" && (
+          <div className="admin-mgmt-wrap">
+            {adminViewLoading ? (
+              <div style={{ padding: "3rem", textAlign: "center", color: "var(--neutral-ink-400)" }}>Loading…</div>
+            ) : (
+              <>
+                {/* Pending requests */}
+                <div className="admin-mgmt-section">
+                  <h3 className="admin-mgmt-title">
+                    Pending Requests
+                    {pendingRequests.length > 0 && <span className="admin-mgmt-badge">{pendingRequests.length}</span>}
+                  </h3>
+                  {pendingRequests.length === 0 ? (
+                    <p className="admin-mgmt-empty">No pending requests.</p>
+                  ) : (
+                    <div className="admin-mgmt-list">
+                      {pendingRequests.map(req => (
+                        <div key={req.id} className="admin-mgmt-row">
+                          <div className="admin-mgmt-email">{req.email}</div>
+                          <div className="admin-mgmt-meta">{new Date(req.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
+                          <div className="admin-mgmt-actions">
+                            <button
+                              type="button"
+                              className="admin-mgmt-btn approve"
+                              disabled={actioningReqId === req.id}
+                              onClick={() => handleRequestAction(req.id, "approve")}
+                            >
+                              {actioningReqId === req.id ? "…" : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-mgmt-btn reject"
+                              disabled={actioningReqId === req.id}
+                              onClick={() => handleRequestAction(req.id, "reject")}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Current admins */}
+                <div className="admin-mgmt-section">
+                  <h3 className="admin-mgmt-title">Current Admins</h3>
+                  <div className="admin-mgmt-list">
+                    {adminList.map(admin => (
+                      <div key={admin.id} className="admin-mgmt-row">
+                        <div className="admin-mgmt-email">{admin.email}</div>
+                        <div className="admin-mgmt-meta">{admin.role}</div>
+                        <div className="admin-mgmt-actions">
+                          <button
+                            type="button"
+                            className="admin-mgmt-btn remove"
+                            disabled={removingId === admin.id || admin.email === currentAdminEmail}
+                            onClick={() => handleRemoveAdmin(admin.id)}
+                            title={admin.email === currentAdminEmail ? "You cannot remove yourself" : "Remove admin"}
+                          >
+                            {removingId === admin.id ? "…" : "Remove"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Detail loading */}
+        {activeView === "submissions" && detailLoading && (
+          <div style={{ padding: "3rem", textAlign: "center", color: "var(--muted)" }}>Loading…</div>
+        )}
+
+        {/* Detail panel */}
+        {activeView === "submissions" && !detailLoading && detail && (
           <div className="detail-wrap">
-            {/* Submission header */}
+
+            {/* Header */}
             <div className="detail-hero">
               <div>
-                <h2 className="detail-hero-address">{selectedRecord.address}</h2>
-                <p className="detail-hero-sub">{selectedRecord.name} · {selectedRecord.id}</p>
-                {(selectedRecord.email || selectedRecord.phone) && (
+                <h2 className="detail-hero-address">{detail.address}</h2>
+                <p className="detail-hero-sub">
+                  {`${detail.first_name ?? ""} ${detail.last_name ?? ""}`.trim() || "Unknown"} · {detail.human_id}
+                </p>
+                {(detail.email || detail.phone) && (
                   <div className="detail-contact-row">
-                    {selectedRecord.email && <span>✉ {selectedRecord.email}</span>}
-                    {selectedRecord.phone && <span>📞 {selectedRecord.phone}</span>}
+                    {detail.email && <span>✉ {detail.email}</span>}
+                    {detail.phone && <span>📞 {detail.phone}</span>}
                   </div>
                 )}
               </div>
-              <span className={`status-pill status-pill-lg ${selectedRecord.status.toLowerCase().replace(" ", "-")}`}>
-                {selectedRecord.status}
+              <span className={`status-pill status-pill-lg ${detail.status.toLowerCase().replace(" ", "-")}`}>
+                {detail.status}
               </span>
             </div>
 
@@ -429,14 +540,15 @@ export default function AdminPage() {
             <div className="detail-section">
               <div className="pipeline">
                 {PIPELINE_STEPS.map((s, i) => {
-                  const isDone = i < pipelineIndex;
+                  const isDone   = i < pipelineIndex;
                   const isActive = i === pipelineIndex;
                   return (
                     <div key={s} className="pipeline-item">
                       <button
                         type="button"
                         className={`pipeline-step${isActive ? " active" : isDone ? " done" : ""}`}
-                        onClick={() => setRecords(prev => prev.map(r => r.id === selectedRecord.id ? { ...r, status: s } : r))}
+                        disabled={statusSaving}
+                        onClick={() => handleStatusChange(s)}
                       >
                         <div className="pipeline-node">{isDone ? "✓" : i + 1}</div>
                         <span className="pipeline-label">{s}</span>
@@ -455,12 +567,13 @@ export default function AdminPage() {
               <h4 className="detail-section-title">Property Details</h4>
               <div className="prop-table">
                 {[
-                  { label: "Sq. Footage", value: selectedRecord.sqft || "—" },
-                  { label: "Bedrooms", value: selectedRecord.beds ?? "—" },
-                  { label: "Bathrooms", value: selectedRecord.baths ?? "—" },
-                  { label: "Year Built", value: selectedRecord.yearBuilt || "—" },
-                  { label: "Lot Size", value: selectedRecord.lotSize || "—" },
-                  { label: "Condition", value: selectedRecord.condition || "—", badge: true },
+                  { label: "Sq. Footage", value: detail.sqft ?? "—" },
+                  { label: "Bedrooms",    value: detail.beds ?? "—" },
+                  { label: "Bathrooms",   value: detail.baths ?? "—" },
+                  { label: "Year Built",  value: detail.year_built ?? "—" },
+                  { label: "Lot Size",    value: detail.lot_size ?? "—" },
+                  { label: "Condition",   value: detail.condition ?? "—", badge: true },
+                  { label: "Submitted",   value: formatDate(detail.submitted_at) },
                 ].map(({ label, value, badge }) => (
                   <div key={label} className="prop-row">
                     <span className="prop-label">{label}</span>
@@ -477,21 +590,41 @@ export default function AdminPage() {
             {/* Gallery */}
             <div className="detail-section">
               <h4 className="detail-section-title">Gallery</h4>
-              <div className="detail-gallery-grid">
-                {(selectedRecord.rooms ?? []).map((room, i) => (
-                  <div key={room} className="gallery-item" style={{ background: `linear-gradient(135deg, hsl(${200 + i * 18}, 25%, 22%), hsl(${200 + i * 18}, 20%, 32%))` }}>
-                    <span className="gallery-item-label">{room}</span>
+              {Object.keys(galleryByRoom).length > 0 ? (
+                Object.entries(galleryByRoom).map(([room, files]) => (
+                  <div key={room} style={{ marginBottom: "1.25rem" }}>
+                    <p style={{ fontSize: "0.7rem", color: "var(--muted)", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      {room}
+                    </p>
+                    <div className="detail-gallery-grid">
+                      {files.map(f => (
+                        <a
+                          key={f.id}
+                          href={f.signed_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="gallery-item"
+                          style={{ backgroundImage: `url(${f.signed_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                        >
+                          <span className="gallery-item-label">{room}</span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
+                ))
+              ) : (
+                <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>
+                  {detail.files.length > 0 ? "No photos available." : "No files uploaded."}
+                </p>
+              )}
             </div>
 
             {/* Pre-qualification */}
-            {selectedRecord.prequalAnswers && Object.keys(selectedRecord.prequalAnswers).length > 0 && (
+            {detail.prequal_answers && Object.keys(detail.prequal_answers).length > 0 && (
               <div className="detail-section">
                 <h4 className="detail-section-title">Pre-Qualification</h4>
                 <div className="prequal-table">
-                  {Object.entries(selectedRecord.prequalAnswers).map(([key, value]) => (
+                  {Object.entries(detail.prequal_answers).map(([key, value]) => (
                     <div key={key} className="prequal-row">
                       <span className="prequal-label">{PREQUAL_LABELS[key] ?? key}</span>
                       <span className="prequal-value">{value}</span>
@@ -505,48 +638,77 @@ export default function AdminPage() {
             <div className="detail-section">
               <div className="ai-header">
                 <h4 className="detail-section-title">AI Summary</h4>
-                <span className="ai-badge">Generated</span>
+                {detail.ai_summary ? (
+                  <span className="ai-badge">Generated {formatDate(detail.ai_generated_at)}</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="admin-notes-save"
+                    disabled={aiLoading}
+                    onClick={handleGenerateSummary}
+                  >
+                    {aiLoading ? "Generating…" : "Generate AI Summary"}
+                  </button>
+                )}
               </div>
-              <div className="admin-ai-card">
-                <div className="ai-summary-section">
-                  <h5>Property Overview</h5>
-                  <p>{getOverview(selectedRecord.condition ?? "Good", selectedRecord.beds ?? null, selectedRecord.baths ?? null)}</p>
-                </div>
-                <div className="ai-summary-section">
-                  <h5>Condition by Room</h5>
-                  <div className="ai-room-grid">
-                    {(selectedRecord.rooms ?? []).map(room => {
-                      const signal = getRoomSignal(room, selectedRecord.condition ?? "Good");
-                      return (
-                        <div key={room} className="ai-room-row">
-                          <span className="ai-room-name">{room}</span>
-                          <span className={`ai-room-signal ai-signal-${signal}`}>{getSignalLabel(signal)}</span>
+              {aiError && (
+                <p style={{ color: "var(--error, #f87171)", fontSize: "0.875rem", marginBottom: "0.75rem" }}>{aiError}</p>
+              )}
+              {detail.ai_summary ? (
+                <div className="admin-ai-card">
+                  <div className="ai-summary-section">
+                    <h5>Property Overview</h5>
+                    <p>{detail.ai_summary.overview}</p>
+                  </div>
+                  <div className="ai-summary-section">
+                    <h5>Condition by Room</h5>
+                    <div className="ai-room-grid">
+                      {detail.ai_summary.rooms.map(r => (
+                        <div key={r.room} className="ai-room-row">
+                          <span className="ai-room-name">{r.room}</span>
+                          <span className={`ai-room-signal ai-signal-${r.signal}`}>{r.signal}</span>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
+                  </div>
+                  <div className="ai-summary-section">
+                    <h5>Visible Flags</h5>
+                    <div className="admin-ai-flags">
+                      {detail.ai_summary.flags.map(flag => <span key={flag}>{flag}</span>)}
+                    </div>
+                  </div>
+                  <div className="ai-summary-section">
+                    <h5>Overall Assessment</h5>
+                    <p className="ai-overall">{detail.ai_summary.assessment}</p>
                   </div>
                 </div>
-                <div className="ai-summary-section">
-                  <h5>Visible Flags</h5>
-                  <div className="admin-ai-flags">
-                    {getFlags(selectedRecord.condition ?? "Good").map(flag => (
-                      <span key={flag}>{flag}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="ai-summary-section">
-                  <h5>Overall Assessment</h5>
-                  <p className="ai-overall">{getAssessment(selectedRecord.condition ?? "Good")}</p>
-                </div>
-              </div>
+              ) : (
+                !aiLoading && (
+                  <p style={{ color: "var(--muted)", fontSize: "0.875rem" }}>
+                    No summary yet. Click "Generate AI Summary" to analyze this submission.
+                  </p>
+                )
+              )}
             </div>
 
             {/* Notes */}
             <div className="detail-section">
               <h4 className="detail-section-title">Internal Notes</h4>
+              {detail.internal_notes.length > 0 && (
+                <div style={{ marginBottom: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {detail.internal_notes.map((n: InternalNote) => (
+                    <div key={n.id} style={{ background: "rgba(255,255,255,0.04)", borderRadius: "0.5rem", padding: "0.75rem 1rem" }}>
+                      <div style={{ fontSize: "0.7rem", color: "var(--muted)", marginBottom: "0.25rem" }}>
+                        {n.author} · {formatDate(n.created_at)}
+                      </div>
+                      <p style={{ fontSize: "0.875rem", margin: 0 }}>{n.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
               <textarea
                 className="text-input"
-                placeholder="Add your internal notes…"
+                placeholder="Add an internal note…"
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
               />
@@ -554,12 +716,14 @@ export default function AdminPage() {
                 <button
                   type="button"
                   className="admin-notes-save"
-                  onClick={() => { setNoteSaved(true); setTimeout(() => setNoteSaved(false), 2000); }}
+                  disabled={noteSaving || !noteText.trim()}
+                  onClick={handleSaveNote}
                 >
-                  {noteSaved ? "✓ Saved" : "Save Notes"}
+                  {noteSaved ? "✓ Saved" : noteSaving ? "Saving…" : "Save Note"}
                 </button>
               </div>
             </div>
+
           </div>
         )}
       </main>

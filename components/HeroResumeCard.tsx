@@ -2,24 +2,17 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { SESSION_KEY, type IntakeSession } from "../lib/client/intakeSession";
 
-const SESSION_KEY = "ch_intake_session";
-const STEPS = ["Address", "Property", "Rooms", "Uploads", "Review"];
-
-interface Session {
-  currentStep: number;
-  addressQuery: string;
-  selectedProperty: { address: string; sqft: string } | null;
-  savedAt: string;
-}
+const STEPS = ["Address", "Property", "Rooms", "Uploads", "Contact", "Review"];
 
 export default function HeroResumeCard() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<IntakeSession | null>(null);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) setSession(JSON.parse(raw));
+      if (raw) setSession(JSON.parse(raw) as IntakeSession);
     } catch {
       localStorage.removeItem(SESSION_KEY);
     }
@@ -27,9 +20,17 @@ export default function HeroResumeCard() {
 
   const hasActiveSession = session && session.currentStep > 0;
   const progress = session ? Math.round((session.currentStep / (STEPS.length - 1)) * 100) : 65;
-  const address = session?.selectedProperty?.address || session?.addressQuery || "";
+
+  // selectedAddress is the flat field from the new IntakeSession shape
+  const address = session?.selectedAddress || session?.addressQuery || "";
   const streetPart = address.split(",")[0] || "Willow Lane Residence";
-  const cityPart = address.split(",").slice(1).join(",").trim() || "Austin, TX · 2,140 sqft";
+  const cityPart = session?.addressCity && session?.addressState
+    ? `${session.addressCity}, ${session.addressState}`
+    : address.split(",").slice(1).join(",").trim() || "Austin, TX";
+  const meta = hasActiveSession
+    ? `${cityPart}${session?.sqft ? ` · ${session.sqft} sqft` : ""}`
+    : "Austin, TX · 2,140 sqft";
+
   const stepName = session ? STEPS[Math.min(session.currentStep, STEPS.length - 1)] : "";
 
   return (
@@ -40,9 +41,7 @@ export default function HeroResumeCard() {
           <div className="hero-card-live-badge">In Progress</div>
         )}
         <p className="hero-card-title">{streetPart}</p>
-        <p className="hero-card-meta">
-          {hasActiveSession ? cityPart : "Austin, TX · 2,140 sqft"}
-        </p>
+        <p className="hero-card-meta">{hasActiveSession ? meta : "Austin, TX · 2,140 sqft"}</p>
         <div className="hero-card-row">
           <span>
             {hasActiveSession ? `Step ${session!.currentStep + 1} — ${stepName}` : "Intake progress"}

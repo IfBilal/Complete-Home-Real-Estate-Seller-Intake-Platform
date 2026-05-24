@@ -2,12 +2,103 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const FEATURES = [
   { icon: "◈", label: "Submission Management", desc: "Review and track every seller intake in one place." },
   { icon: "◎", label: "AI Property Summaries", desc: "Auto-generated condition analysis for each submission." },
   { icon: "◇", label: "Pipeline Tracking",     desc: "Move submissions from New to Closed with one click." },
 ];
+
+function LoginForm() {
+  const router      = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+
+  async function handleSubmit(e: { preventDefault(): void }) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/auth/login", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setError(json.error ?? "Login failed. Check your credentials.");
+      } else {
+        const redirect = searchParams.get("redirect") ?? "/admin";
+        router.push(redirect);
+        router.refresh();
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="al-right">
+      <div className="al-form-wrap">
+        <div className="al-form-header">
+          <span className="al-pill">Staff Portal</span>
+          <h1>Sign In</h1>
+          <p>Enter your credentials to access the review dashboard.</p>
+        </div>
+
+        <form className="al-form" onSubmit={handleSubmit}>
+          <div className="al-field">
+            <label className="input-label" htmlFor="email">Work email</label>
+            <input
+              id="email"
+              className="text-input"
+              type="email"
+              placeholder="you@completehome.com"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div className="al-field">
+            <label className="input-label" htmlFor="password">Password</label>
+            <input
+              id="password"
+              className="text-input"
+              type="password"
+              placeholder="••••••••••"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && <p className="al-error">{error}</p>}
+
+          <button
+            className="button-primary al-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Signing in…" : "Sign In to Dashboard"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminLoginPage() {
   return (
@@ -26,9 +117,7 @@ export default function AdminLoginPage() {
 
           <div className="al-left-body">
             <p className="al-left-label">Internal Dashboard</p>
-            <h2 className="al-left-heading">
-              Your complete review workspace.
-            </h2>
+            <h2 className="al-left-heading">Your complete review workspace.</h2>
             <p className="al-left-sub">
               Manage seller submissions, review AI-generated property summaries, and guide deals from intake to close.
             </p>
@@ -50,38 +139,10 @@ export default function AdminLoginPage() {
         </div>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className="al-right">
-        <div className="al-form-wrap">
-          <div className="al-form-header">
-            <span className="al-pill">Staff Portal</span>
-            <h1>Sign In</h1>
-            <p>Enter your credentials to access the review dashboard.</p>
-          </div>
-
-          <form className="al-form">
-            <div className="al-field">
-              <label className="input-label" htmlFor="email">Work email</label>
-              <input id="email" className="text-input" type="email" placeholder="you@completehome.com" />
-            </div>
-
-            <div className="al-field">
-              <div className="al-field-row">
-                <label className="input-label" htmlFor="password">Password</label>
-                <a href="#" className="al-forgot">Forgot password?</a>
-              </div>
-              <input id="password" className="text-input" type="password" placeholder="••••••••••" />
-            </div>
-
-            <button className="button-primary al-submit" type="button">
-              Sign In to Dashboard
-            </button>
-
-          </form>
-
-          <p className="login-note">Demo only — authentication is mocked for client preview.</p>
-        </div>
-      </div>
+      {/* ── Right panel — Suspense required for useSearchParams ── */}
+      <Suspense fallback={<div className="al-right" />}>
+        <LoginForm />
+      </Suspense>
 
     </main>
   );
