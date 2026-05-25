@@ -11,8 +11,8 @@ const nextConfig = {
       },
       {
         protocol: "https",
-        hostname:  "maps.googleapis.com",
-        pathname:  "/maps/api/streetview**",
+        hostname:  "maps.geoapify.com",
+        pathname:  "/v1/staticmap**",
       },
     ],
   },

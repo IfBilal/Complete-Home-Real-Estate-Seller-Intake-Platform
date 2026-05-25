@@ -251,6 +251,7 @@ export default function AdminPage() {
   }, [records]);
 
   const newCount      = records.filter(r => r.is_new).length;
+  const closedCount   = records.filter(r => r.status === "Closed").length;
   const pipelineIndex = PIPELINE_STEPS.indexOf(detail?.status as typeof PIPELINE_STEPS[number]);
 
   const galleryByRoom = useMemo(() => {
@@ -310,8 +311,8 @@ export default function AdminPage() {
             <span>Submissions</span>
           </div>
           <div className="sidebar-stat">
-            <strong>48h</strong>
-            <span>Avg response</span>
+            <strong>{closedCount}</strong>
+            <span>Closed</span>
           </div>
           {newCount > 0 && (
             <div className="sidebar-stat sidebar-new-badge">

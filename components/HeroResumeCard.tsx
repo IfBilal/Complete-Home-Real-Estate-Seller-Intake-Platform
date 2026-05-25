@@ -23,13 +23,13 @@ export default function HeroResumeCard() {
 
   // selectedAddress is the flat field from the new IntakeSession shape
   const address = session?.selectedAddress || session?.addressQuery || "";
-  const streetPart = address.split(",")[0] || "Willow Lane Residence";
+  const streetPart = address.split(",")[0] || "Your Property";
   const cityPart = session?.addressCity && session?.addressState
     ? `${session.addressCity}, ${session.addressState}`
-    : address.split(",").slice(1).join(",").trim() || "Austin, TX";
+    : address.split(",").slice(1).join(",").trim() || "City, State";
   const meta = hasActiveSession
     ? `${cityPart}${session?.sqft ? ` · ${session.sqft} sqft` : ""}`
-    : "Austin, TX · 2,140 sqft";
+    : "City, State · Sq Ft";
 
   const stepName = session ? STEPS[Math.min(session.currentStep, STEPS.length - 1)] : "";
 
@@ -41,17 +41,17 @@ export default function HeroResumeCard() {
           <div className="hero-card-live-badge">In Progress</div>
         )}
         <p className="hero-card-title">{streetPart}</p>
-        <p className="hero-card-meta">{hasActiveSession ? meta : "Austin, TX · 2,140 sqft"}</p>
+        <p className="hero-card-meta">{hasActiveSession ? meta : "City, State · Sq Ft"}</p>
         <div className="hero-card-row">
           <span>
             {hasActiveSession ? `Step ${session!.currentStep + 1} — ${stepName}` : "Intake progress"}
           </span>
-          <strong>{hasActiveSession ? `${progress}%` : "65%"}</strong>
+          <strong>{hasActiveSession ? `${progress}%` : "0%"}</strong>
         </div>
         <div className="hero-card-progress">
           <div
             className="hero-card-progress-fill"
-            style={{ width: `${hasActiveSession ? progress : 65}%` }}
+            style={{ width: `${hasActiveSession ? progress : 0}%` }}
           />
         </div>
         {hasActiveSession ? (

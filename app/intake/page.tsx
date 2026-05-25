@@ -398,7 +398,7 @@ export default function IntakePage() {
       const placeId = session.placeId;
       if (placeId) {
         const details = await apiFetch<PlaceDetails>(
-          `/api/address/details?placeId=${encodeURIComponent(placeId)}`
+          `/api/address/details?placeId=${encodeURIComponent(placeId)}&session=${sessionToken}`
         );
         city        = details.addressCity ?? "";
         state       = details.addressState ?? "";
@@ -409,11 +409,14 @@ export default function IntakePage() {
         setAddressQuery(fullAddress);
       }
 
-      // 2. Get Street View image — non-blocking failure
-      const streetView = await apiFetch<{ exteriorImageUrl: string }>(
-        `/api/address/property?address=${encodeURIComponent(fullAddress)}`
-      ).catch(() => null);
-      if (streetView?.exteriorImageUrl) setExteriorImageUrl(streetView.exteriorImageUrl);
+      // 2. Get satellite image — only if we have real coordinates
+      let streetView: { exteriorImageUrl: string } | null = null;
+      if (lat !== 0 && lng !== 0) {
+        streetView = await apiFetch<{ exteriorImageUrl: string }>(
+          `/api/address/property?lat=${lat}&lng=${lng}`
+        ).catch(() => null);
+        if (streetView?.exteriorImageUrl) setExteriorImageUrl(streetView.exteriorImageUrl);
+      }
 
       // 3. Create/update draft submission — get real submissionId
       const draft = await apiFetch<{ submissionId: string; humanId: string }>(
@@ -454,7 +457,7 @@ export default function IntakePage() {
     } finally {
       setIsConfirming(false);
     }
-  }, [addressQuery, session.placeId, session.submissionId, updateSession]);
+  }, [addressQuery, session.placeId, session.submissionId, sessionToken, updateSession]);
 
   const showDropdown = addressQuery.length >= 2 && !isConfirmed && suggestions.length > 0;
 
