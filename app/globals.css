@@ -1403,11 +1403,14 @@ button {
 }
 
 .property-card {
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid var(--neutral-line-200);
   background: var(--neutral-white);
   box-shadow: var(--shadow-soft);
   overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
 }
 
 .property-card.confirmed {
@@ -1415,72 +1418,88 @@ button {
 }
 
 .property-image {
-  height: 180px;
+  width: 110px;
+  min-width: 110px;
   background: linear-gradient(155deg, #2E1A0E 0%, #1a3a5c 35%, #2563eb 70%, #1d4ed8 100%);
   position: relative;
   display: flex;
   align-items: flex-end;
-  padding: 14px 16px;
+  padding: 8px;
+  flex-shrink: 0;
 }
 
 .property-image-label {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: rgba(255, 255, 255, 0.75);
   background: rgba(0, 0, 0, 0.32);
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 6px;
+  border-radius: 4px;
   backdrop-filter: blur(4px);
 }
 
 .property-details {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .property-address {
   margin: 0;
   font-weight: 600;
+  font-size: 13px;
   color: var(--neutral-ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .property-meta {
   margin: 0;
   color: var(--neutral-ink-500);
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .property-info-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  font-size: 13px;
+  gap: 8px;
+  font-size: 12px;
   color: var(--neutral-ink-500);
 }
 
 .property-info-grid strong {
   display: block;
   color: var(--neutral-ink-900);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .property-actions {
   border-top: 1px solid var(--neutral-line-200);
-  padding: 12px 16px 16px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   color: var(--neutral-ink-700);
+  font-size: 13px;
 }
 
 .property-buttons {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.property-buttons .button-secondary,
+.property-buttons .button-primary {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12px;
 }
 
 .property-confirmed {
@@ -5769,8 +5788,12 @@ button {
 
 .sidebar-selects {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 6px;
+}
+
+.sidebar-selects .sidebar-select:last-child {
+  grid-column: 1 / -1;
 }
 
 .sidebar-select {
@@ -6426,6 +6449,25 @@ button {
   color: rgba(255, 255, 255, 0.9);
   text-transform: uppercase;
   letter-spacing: 0.07em;
+}
+
+.gallery-item-video {
+  background: #0d0d0d;
+}
+
+.gallery-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.gallery-video-badge {
+  background: rgba(0, 0, 0, 0.55);
+  padding: 3px 7px;
+  border-radius: 4px;
 }
 
 /* ── Prequal table ── */

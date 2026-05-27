@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
-import * as tus from "tus-js-client";
 import imageCompression from "browser-image-compression";
 import IntakeChatbot from "../../components/IntakeChatbot";
 import { getRoomSignal, getSignalLabel, getOverview, getFlags, getAssessment } from "../../lib/aiSummary";
@@ -20,21 +19,19 @@ interface UploadItem {
   type: "photo" | "video";
   preview: string | null;
   progress: number;
-  status: "uploading" | "ok" | "mismatch";
+  status: "uploading" | "ok" | "mismatch" | "invalid";
 }
 
 interface UploadSlotProps {
   item?: UploadItem;
   isVideo?: boolean;
   room: string;
-  otherRooms: string[];
   onUpload: (file: File) => void;
   onRemove: (id: string) => void;
-  onResolve: (id: string) => void;
-  onMove: (id: string, toRoom: string) => void;
+  onDismiss: (id: string) => void;
 }
 
-function UploadSlot({ item, isVideo, room, otherRooms, onUpload, onRemove, onResolve, onMove }: UploadSlotProps) {
+function UploadSlot({ item, isVideo, room, onUpload, onRemove, onDismiss }: UploadSlotProps) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -54,8 +51,9 @@ function UploadSlot({ item, isVideo, room, otherRooms, onUpload, onRemove, onRes
           <button type="button" className="upload-remove-btn" onClick={() => onRemove(item.id)}>×</button>
           <span className={`upload-status-badge status-${item.status}`}>
             {item.status === "uploading" && `↑ ${item.progress}%`}
-            {item.status === "ok" && "✓ Matched"}
-            {item.status === "mismatch" && "⚠ Wrong room?"}
+            {item.status === "ok"       && "✓ Confirmed"}
+            {item.status === "mismatch" && "⚠ Not a " + room}
+            {item.status === "invalid"  && "⚠ Unusable photo"}
           </span>
           {item.status === "uploading" && (
             <div className="upload-progress-track">
@@ -65,15 +63,15 @@ function UploadSlot({ item, isVideo, room, otherRooms, onUpload, onRemove, onRes
         </div>
         {item.status === "mismatch" && (
           <div className="mismatch-panel">
-            <p className="mismatch-label">May not be <strong>{room}</strong>. Move to:</p>
-            <div className="mismatch-rooms">
-              {otherRooms.map(r => (
-                <button key={r} type="button" className="mismatch-room-btn" onClick={() => onMove(item.id, r)}>{r}</button>
-              ))}
-            </div>
-            <button type="button" className="mismatch-keep-btn" onClick={() => onResolve(item.id)}>
-              Keep here — it&apos;s correct
+            <p className="mismatch-label">This doesn&apos;t look like a <strong>{room}</strong>. Remove it and upload the correct photo.</p>
+            <button type="button" className="mismatch-keep-btn" onClick={() => onDismiss(item.id)}>
+              Keep anyway — I know it&apos;s correct
             </button>
+          </div>
+        )}
+        {item.status === "invalid" && (
+          <div className="mismatch-panel">
+            <p className="mismatch-label">This photo isn&apos;t usable — remove it and try again.</p>
           </div>
         )}
       </div>
@@ -257,6 +255,11 @@ export default function IntakePage() {
   const mismatchUploads = useMemo(() =>
     Object.entries(uploads).flatMap(([room, arr]) =>
       arr.filter(u => u.status === "mismatch").map(u => ({ room, item: u }))
+    ), [uploads]);
+
+  const invalidUploads = useMemo(() =>
+    Object.entries(uploads).flatMap(([room, arr]) =>
+      arr.filter(u => u.status === "invalid").map(u => ({ room, item: u }))
     ), [uploads]);
 
   // ─── Redirect after success ───────────────────────────────────────────────
@@ -530,8 +533,8 @@ export default function IntakePage() {
           }
         }
 
-        // 1. Init — register file in DB + get signed Supabase Storage URL + TUS token
-        const { fileId, uploadUrl, storagePath, token } = await apiFetch<{ fileId: string; uploadUrl: string; storagePath: string; token: string }>(
+        // 1. Init — register file in DB + get signed Supabase Storage URL
+        const { fileId, uploadUrl } = await apiFetch<{ fileId: string; uploadUrl: string; storagePath: string; token: string }>(
           "/api/intake/upload/init",
           {
             method:  "POST",
@@ -552,55 +555,24 @@ export default function IntakePage() {
           [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, fileId } : u),
         }));
 
-        // 2. Upload to Supabase Storage
-        if (isVideo) {
-          // TUS resumable upload for videos — chunked, survives connection drops
-          await new Promise<void>((resolve, reject) => {
-            const upload = new tus.Upload(fileToUpload, {
-              endpoint:                    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/upload/resumable`,
-              retryDelays:                 [0, 3000, 5000, 10000, 20000],
-              headers:                     { authorization: `Bearer ${token}`, "x-upsert": "false" },
-              uploadDataDuringCreation:    true,
-              removeFingerprintOnSuccess:  true,
-              metadata: {
-                bucketName:  "property-media",
-                objectName:  storagePath,
-                contentType: fileToUpload.type,
-                cacheControl: "3600",
-              },
-              chunkSize:  6 * 1024 * 1024,
-              onProgress: (bytesUploaded, bytesTotal) => {
-                const pct = Math.round((bytesUploaded / bytesTotal) * 90);
-                setUploads(prev => ({
-                  ...prev,
-                  [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: pct } : u),
-                }));
-              },
-              onSuccess: () => resolve(),
-              onError:   (err) => reject(err),
-            });
-            upload.start();
-          });
-        } else {
-          // XHR PUT for photos — already compressed, fast single-shot
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", uploadUrl);
-            xhr.setRequestHeader("Content-Type", fileToUpload.type);
-            xhr.upload.onprogress = (e) => {
-              if (e.lengthComputable) {
-                const pct = Math.round((e.loaded / e.total) * 90);
-                setUploads(prev => ({
-                  ...prev,
-                  [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: pct } : u),
-                }));
-              }
-            };
-            xhr.onload  = () => xhr.status < 400 ? resolve() : reject(new Error(`Upload ${xhr.status}`));
-            xhr.onerror = () => reject(new Error("Network error"));
-            xhr.send(fileToUpload);
-          });
-        }
+        // 2. Upload directly to Supabase Storage via signed URL (XHR for all file types)
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", uploadUrl);
+          xhr.setRequestHeader("Content-Type", fileToUpload.type);
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const pct = Math.round((e.loaded / e.total) * 90);
+              setUploads(prev => ({
+                ...prev,
+                [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: pct } : u),
+              }));
+            }
+          };
+          xhr.onload  = () => xhr.status < 400 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`));
+          xhr.onerror = () => reject(new Error("Network error"));
+          xhr.send(fileToUpload);
+        });
 
         // 3. Confirm — triggers background AI room detection for photos
         await apiFetch("/api/intake/upload/confirm", {
@@ -623,12 +595,19 @@ export default function IntakePage() {
               const s = await apiFetch<UploadStatusResponse>(
                 `/api/intake/upload/status?fileId=${fileId}&submissionId=${submissionId}`
               );
-              if (s.aiStatus === "done") {
-                if (s.isMismatch) {
-                  setUploads(prev => ({
-                    ...prev,
-                    [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "mismatch" } : u),
-                  }));
+              if (s.aiStatus === "done" || s.aiStatus === "skipped") {
+                if (s.aiStatus === "done") {
+                  if (s.isInvalid) {
+                    setUploads(prev => ({
+                      ...prev,
+                      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "invalid" } : u),
+                    }));
+                  } else if (s.isMismatch) {
+                    setUploads(prev => ({
+                      ...prev,
+                      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "mismatch" } : u),
+                    }));
+                  }
                 }
                 return;
               }
@@ -655,27 +634,17 @@ export default function IntakePage() {
     setUploads(prev => {
       const item = (prev[room] ?? []).find(u => u.id === id);
       if (item?.preview) URL.revokeObjectURL(item.preview);
+      if (item?.fileId && session.submissionId) {
+        fetch(`/api/intake/upload/init?fileId=${item.fileId}&submissionId=${session.submissionId}`, { method: "DELETE" }).catch(() => {});
+      }
       return { ...prev, [room]: (prev[room] ?? []).filter(u => u.id !== id) };
     });
   };
 
-  const moveUpload = (fromRoom: string, id: string, toRoom: string) => {
-    setUploads(prev => {
-      const item = (prev[fromRoom] ?? []).find(u => u.id === id);
-      if (!item) return prev;
-      return {
-        ...prev,
-        [fromRoom]: (prev[fromRoom] ?? []).filter(u => u.id !== id),
-        [toRoom]:   [...(prev[toRoom] ?? []), { ...item, status: "ok" as const }],
-      };
-    });
-    setActivePanel(toRoom);
-  };
-
-  const resolveMismatch = (room: string, id: string) => {
+  const dismissFlag = (room: string, id: string) => {
     setUploads(prev => ({
       ...prev,
-      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "ok" as const } : u)
+      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "ok" as const } : u),
     }));
   };
 
@@ -719,8 +688,12 @@ export default function IntakePage() {
         setErrors({ uploads: "Upload at least one photo or video." });
         return false;
       }
+      if (invalidUploads.length > 0) {
+        setErrors({ uploads: "Remove unusable photos before continuing." });
+        return false;
+      }
       if (mismatchUploads.length > 0) {
-        setErrors({ uploads: "Fix any room mismatches before continuing." });
+        setErrors({ uploads: "Fix any flagged photos before continuing." });
         return false;
       }
       const incompleteRooms = roomUploadStatus.filter(r => r.photosMissing > 0 || r.videoMissing > 0);
@@ -905,7 +878,7 @@ export default function IntakePage() {
                           src={exteriorImageUrl}
                           alt="Street view"
                           className="property-image"
-                          style={{ objectFit: "cover", width: "100%", height: "100%" }}
+                          style={{ objectFit: "cover", width: "110px", height: "100%", display: "block" }}
                         />
                       ) : (
                         <div className="property-image">
@@ -1077,12 +1050,15 @@ export default function IntakePage() {
                     <h3>Upload your walkthrough</h3>
                     <p>3 photos + 1 video per room. Drag files onto each slot or click to browse.</p>
                   </div>
-                  {mismatchUploads.length > 0 && (
+                  {(invalidUploads.length > 0 || mismatchUploads.length > 0) && (
                     <div className="upload-mismatch-banner">
                       <span>⚠</span>
                       <div>
-                        <strong>Room mismatch detected</strong>
-                        <span>Fix the flagged photos before continuing.</span>
+                        <strong>Photo issues detected</strong>
+                        <span>
+                          {invalidUploads.length > 0 && `${invalidUploads.length} unusable photo(s) must be removed. `}
+                          {mismatchUploads.length > 0 && `${mismatchUploads.length} photo(s) may be in the wrong section.`}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1092,7 +1068,6 @@ export default function IntakePage() {
                       const isDone     = roomStatus?.photosMissing === 0 && roomStatus?.videoMissing === 0;
                       const photoItems = (uploads[panel] ?? []).filter(u => u.type === "photo");
                       const videoItem  = (uploads[panel] ?? []).find(u => u.type === "video");
-                      const otherRooms = selectedRooms.filter(r => r !== panel);
                       return (
                         <div key={panel} className={`upload-panel${isDone ? " done" : ""}`}>
                           <button
@@ -1113,11 +1088,9 @@ export default function IntakePage() {
                                     key={`${panel}-photo-${idx}`}
                                     item={photoItems[idx]}
                                     room={panel}
-                                    otherRooms={otherRooms}
                                     onUpload={file => addUpload(panel, file)}
                                     onRemove={id => removeUpload(panel, id)}
-                                    onResolve={id => resolveMismatch(panel, id)}
-                                    onMove={(id, toRoom) => moveUpload(panel, id, toRoom)}
+                                    onDismiss={id => dismissFlag(panel, id)}
                                   />
                                 ))}
                                 <UploadSlot
@@ -1125,11 +1098,9 @@ export default function IntakePage() {
                                   item={videoItem}
                                   isVideo
                                   room={panel}
-                                  otherRooms={otherRooms}
                                   onUpload={file => addUpload(panel, file)}
                                   onRemove={id => removeUpload(panel, id)}
-                                  onResolve={id => resolveMismatch(panel, id)}
-                                  onMove={(id, toRoom) => moveUpload(panel, id, toRoom)}
+                                  onDismiss={id => dismissFlag(panel, id)}
                                 />
                               </div>
                             </div>

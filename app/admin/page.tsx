@@ -258,7 +258,7 @@ export default function AdminPage() {
     if (!detail?.files) return {} as Record<string, AdminSubmissionDetail["files"]>;
     const map: Record<string, AdminSubmissionDetail["files"]> = {};
     for (const f of detail.files) {
-      if (f.file_type === "photo" && f.signed_url) {
+      if ((f.file_type === "photo" || f.file_type === "video") && f.signed_url) {
         (map[f.room] ??= []).push(f);
       }
     }
@@ -599,16 +599,23 @@ export default function AdminPage() {
                     </p>
                     <div className="detail-gallery-grid">
                       {files.map(f => (
-                        <a
-                          key={f.id}
-                          href={f.signed_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="gallery-item"
-                          style={{ backgroundImage: `url(${f.signed_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                        >
-                          <span className="gallery-item-label">{room}</span>
-                        </a>
+                        f.file_type === "video" ? (
+                          <a key={f.id} href={f.signed_url} target="_blank" rel="noopener noreferrer" className="gallery-item gallery-item-video">
+                            <video src={f.signed_url} muted playsInline className="gallery-video" />
+                            <span className="gallery-item-label gallery-video-badge">▶ Video</span>
+                          </a>
+                        ) : (
+                          <a
+                            key={f.id}
+                            href={f.signed_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="gallery-item"
+                            style={{ backgroundImage: `url(${f.signed_url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                          >
+                            <span className="gallery-item-label">{room}</span>
+                          </a>
+                        )
                       ))}
                     </div>
                   </div>

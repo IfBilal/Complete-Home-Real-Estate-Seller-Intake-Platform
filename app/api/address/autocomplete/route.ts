@@ -23,12 +23,9 @@ export async function GET(request: NextRequest) {
   if (!query || query.length < 2) return err("Query too short");
 
   const params = new URLSearchParams({
-    text:    query,
-    apiKey:  process.env.GEOAPIFY_API_KEY!,
-    limit:   "5",
-    filter:  "countrycode:us",
-    type:    "building",
-    format:  "geojson",
+    text:   query,
+    apiKey: process.env.GEOAPIFY_API_KEY!,
+    limit:  "5",
   });
 
   const response = await fetch(

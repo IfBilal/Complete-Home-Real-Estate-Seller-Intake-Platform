@@ -45,9 +45,9 @@ export interface SubmissionFile {
   storage_path: string;
   mime_type: string;
   size_bytes?: number;
-  ai_detected_room?: string;
   ai_confidence?: number;
   ai_is_mismatch?: boolean;
+  ai_is_invalid?: boolean;
   ai_status: AIFileStatus;
   ai_analyzed_at?: string;
   uploaded_at: string;
@@ -121,7 +121,7 @@ export interface AdminSubmissionDetail extends Submission {
 export interface UploadStatusResponse {
   fileId: string;
   aiStatus: AIFileStatus;
-  detectedRoom?: string;
   isMismatch?: boolean;
+  isInvalid?: boolean;
   confidence?: number;
 }

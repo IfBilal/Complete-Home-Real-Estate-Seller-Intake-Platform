@@ -4,36 +4,11 @@ import { getSignedUrl } from "../supabase/storage";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const ROOM_SYNONYMS: Record<string, string[]> = {
-  Kitchen:       ["kitchen", "kitchenette"],
-  "Living Room": ["living room", "lounge", "family room", "great room"],
-  Bedroom:       ["bedroom", "sleeping room", "master bedroom", "guest room"],
-  Bathroom:      ["bathroom", "bath", "restroom", "washroom", "shower"],
-  Garage:        ["garage", "carport"],
-  Backyard:      ["backyard", "patio", "deck", "garden", "pool", "yard"],
-  Exterior:      ["exterior", "front yard", "facade", "outside", "driveway", "street view"],
-  "Dining Room": ["dining room", "dining area"],
-  Basement:      ["basement", "cellar"],
-  Laundry:       ["laundry", "utility room"],
-};
-
-function matchCategory(label: string): string {
-  const lower = label.toLowerCase();
-  for (const [cat, synonyms] of Object.entries(ROOM_SYNONYMS)) {
-    if (synonyms.some(s => lower.includes(s))) return cat;
-  }
-  return "Unknown";
-}
-
-function roomsMatch(assignedRoom: string, detectedCategory: string): boolean {
-  if (detectedCategory === "Unknown") return true;
-  const base = assignedRoom.replace(/\s*\d+$/, "").trim();
-  return base === detectedCategory;
-}
+const CONFIDENCE_THRESHOLD = 0.75;
 
 interface GroqVisionResponse {
-  room_type?: string;
-  confidence?: number;
+  is_valid_photo?: boolean;
+  match_confidence?: number;
 }
 
 export async function detectRoom(
@@ -54,37 +29,39 @@ export async function detectRoom(
 
   try {
     const completion = await groq.chat.completions.create({
-      model: "llama-3.2-90b-vision-preview",
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages: [{
         role: "user",
         content: [
           { type: "image_url", image_url: { url: imageUrl } },
           {
             type: "text",
-            text: `Classify this real estate photo. Respond with ONLY valid JSON:
-{"room_type": "<detected room in plain English>", "confidence": <0.0 to 1.0>}
-Categories: Kitchen, Living Room, Bedroom, Bathroom, Garage, Backyard, Exterior, Dining Room, Basement, Laundry, Unknown.
-No extra text.`
+            text: `This photo was uploaded as a "${assignedRoom}".
+Respond with ONLY valid JSON — no extra text:
+{"is_valid_photo": <true if this is a real usable room or property photo, false if black/blurry/obscured/hand-covered/unusable>, "match_confidence": <0.0 to 1.0, your confidence this photo actually shows a ${assignedRoom}>}`,
           }
         ]
       }],
-      max_tokens: 100,
+      max_tokens: 60,
       temperature: 0.1,
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     let parsed: GroqVisionResponse = {};
-    try { parsed = JSON.parse(raw) as GroqVisionResponse; } catch { /* use empty */ }
+    try { parsed = JSON.parse(raw) as GroqVisionResponse; } catch { /* treat as unknown */ }
 
-    const detected = matchCategory(parsed.room_type ?? "");
-    const isMismatch = !roomsMatch(assignedRoom, detected);
+    const isValidPhoto    = parsed.is_valid_photo !== false;
+    const matchConfidence = parsed.match_confidence ?? 0;
+
+    const isInvalid  = !isValidPhoto;
+    const isMismatch = isValidPhoto && matchConfidence < CONFIDENCE_THRESHOLD;
 
     await adminSupabase.from("submission_files").update({
-      ai_detected_room: detected,
-      ai_confidence:    parsed.confidence ?? null,
-      ai_is_mismatch:   isMismatch,
-      ai_status:        "done",
-      ai_analyzed_at:   new Date().toISOString(),
+      ai_confidence:  matchConfidence,
+      ai_is_mismatch: isMismatch,
+      ai_is_invalid:  isInvalid,
+      ai_status:      "done",
+      ai_analyzed_at: new Date().toISOString(),
     }).eq("id", fileId);
 
   } catch (error) {

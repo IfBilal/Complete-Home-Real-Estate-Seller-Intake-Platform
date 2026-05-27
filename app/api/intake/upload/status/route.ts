@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
   const { data: file } = await adminSupabase
     .from("submission_files")
-    .select("id, ai_status, ai_detected_room, ai_is_mismatch, ai_confidence")
+    .select("id, ai_status, ai_is_mismatch, ai_is_invalid, ai_confidence")
     .eq("id", fileId)
     .eq("submission_id", submissionId)
     .single();
@@ -21,10 +21,10 @@ export async function GET(request: NextRequest) {
 
   const response: UploadStatusResponse = {
     fileId,
-    aiStatus:     file.ai_status,
-    detectedRoom: file.ai_detected_room ?? undefined,
-    isMismatch:   file.ai_is_mismatch ?? undefined,
-    confidence:   file.ai_confidence ?? undefined,
+    aiStatus:   file.ai_status,
+    isMismatch: file.ai_is_mismatch ?? undefined,
+    isInvalid:  file.ai_is_invalid  ?? undefined,
+    confidence: file.ai_confidence  ?? undefined,
   };
 
   return ok(response);

@@ -13,16 +13,16 @@ export type UploadStage =
 
 export interface UploadProgress {
   stage:   UploadStage;
-  percent: number; // 0-100
+  percent: number;
   error?:  string;
 }
 
 export interface UploadResult {
-  fileId:        string;
-  storagePath:   string;
-  detectedRoom?: string;
-  isMismatch?:   boolean;
-  confidence?:   number;
+  fileId:      string;
+  storagePath: string;
+  isMismatch?: boolean;
+  isInvalid?:  boolean;
+  confidence?: number;
 }
 
 type ProgressCallback = (p: UploadProgress) => void;
@@ -38,7 +38,6 @@ export async function uploadFile(
 
   const isVideo = file.type.startsWith("video/");
 
-  // 0. Pre-flight checks + compression
   if (isVideo) {
     const check = checkVideoSize(file);
     if (check.oversized) throw new Error(`Video too large (${check.sizeMB} MB). Maximum is 150 MB.`);
@@ -50,7 +49,6 @@ export async function uploadFile(
     uploadFile = await compressImage(file).catch(() => file);
   }
 
-  // 1. Init — get signed upload URL
   report("requesting", 10);
   const initRes = await fetch("/api/intake/upload/init", {
     method:  "POST",
@@ -73,7 +71,6 @@ export async function uploadFile(
   const { data: initData } = await initRes.json();
   const { fileId, uploadUrl, storagePath } = initData as { fileId: string; uploadUrl: string; storagePath: string };
 
-  // 2. Upload direct to Supabase Storage
   report("uploading", 20);
   const uploadRes = await fetch(uploadUrl, {
     method:  "PUT",
@@ -84,7 +81,6 @@ export async function uploadFile(
   if (!uploadRes.ok) throw new Error("Storage upload failed");
   report("uploading", 75);
 
-  // 3. Confirm
   report("confirming", 80);
   const confirmRes = await fetch("/api/intake/upload/confirm", {
     method:  "POST",
@@ -95,7 +91,6 @@ export async function uploadFile(
   if (!confirmRes.ok) throw new Error("Upload confirmation failed");
   report("analyzing", 85);
 
-  // 4. Poll status until AI analysis completes (max 30s)
   const result = await pollStatus(fileId, submissionId, onProgress);
   report("done", 100);
 
@@ -123,14 +118,13 @@ async function pollStatus(
 
     if (status === "done" || status === "skipped") {
       return {
-        detectedRoom: data.detectedRoom,
-        isMismatch:   data.isMismatch,
-        confidence:   data.confidence,
+        isMismatch: data.isMismatch,
+        isInvalid:  data.isInvalid,
+        confidence: data.confidence,
       };
     }
   }
 
-  // Timeout — treat as skipped, don't block the user
   return {};
 }
 
