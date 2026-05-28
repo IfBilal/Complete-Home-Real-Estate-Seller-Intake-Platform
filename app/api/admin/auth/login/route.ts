@@ -41,12 +41,15 @@ export async function POST(request: NextRequest) {
 
   const { data: adminRow } = await adminSupabase
     .from("admin_users")
-    .select("id, role")
+    .select("id, role, status")
     .eq("email", email.toLowerCase())
     .single();
 
-  if (!adminRow) {
+  if (!adminRow || adminRow.status === "pending") {
     await supabase.auth.signOut();
+    if (adminRow?.status === "pending") {
+      return err("Your access request is pending approval. You'll be notified once an admin approves it.", 403);
+    }
     return err("Access denied", 403);
   }
 
