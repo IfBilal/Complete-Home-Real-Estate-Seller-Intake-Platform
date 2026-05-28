@@ -574,47 +574,35 @@ export default function IntakePage() {
           xhr.send(fileToUpload);
         });
 
-        // 3. Confirm — triggers background AI room detection for photos
-        await apiFetch("/api/intake/upload/confirm", {
+        // 3. Confirm — awaits AI room detection and returns final result
+        const confirmed = await apiFetch<UploadStatusResponse>("/api/intake/upload/confirm", {
           method:  "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ fileId, submissionId }),
         });
 
-        setUploads(prev => ({
-          ...prev,
-          [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: 100, status: "ok" } : u),
-        }));
-
-        // 4. Poll for AI mismatch result (photos only, max ~30s)
-        if (!isVideo) {
-          let attempts = 0;
-          const poll = async () => {
-            if (attempts++ >= 12) return;
-            try {
-              const s = await apiFetch<UploadStatusResponse>(
-                `/api/intake/upload/status?fileId=${fileId}&submissionId=${submissionId}`
-              );
-              if (s.aiStatus === "done" || s.aiStatus === "skipped") {
-                if (s.aiStatus === "done") {
-                  if (s.isInvalid) {
-                    setUploads(prev => ({
-                      ...prev,
-                      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "invalid" } : u),
-                    }));
-                  } else if (s.isMismatch) {
-                    setUploads(prev => ({
-                      ...prev,
-                      [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, status: "mismatch" } : u),
-                    }));
-                  }
-                }
-                return;
-              }
-            } catch { return; }
-            setTimeout(poll, 2500);
-          };
-          setTimeout(poll, 2500);
+        if (!isVideo && confirmed.aiStatus === "done") {
+          if (confirmed.isInvalid) {
+            setUploads(prev => ({
+              ...prev,
+              [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: 100, status: "invalid" } : u),
+            }));
+          } else if (confirmed.isMismatch) {
+            setUploads(prev => ({
+              ...prev,
+              [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: 100, status: "mismatch" } : u),
+            }));
+          } else {
+            setUploads(prev => ({
+              ...prev,
+              [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: 100, status: "ok" } : u),
+            }));
+          }
+        } else {
+          setUploads(prev => ({
+            ...prev,
+            [room]: (prev[room] ?? []).map(u => u.id === id ? { ...u, progress: 100, status: "ok" } : u),
+          }));
         }
       } catch (e) {
         console.error("Upload failed:", e);

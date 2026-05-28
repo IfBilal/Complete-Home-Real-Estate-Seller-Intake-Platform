@@ -34,9 +34,21 @@ export async function POST(request: NextRequest) {
       .update({ ai_status: "analyzing" })
       .eq("id", fileId);
 
-    detectRoom(fileId, submissionId, file.room, file.storage_path)
+    await detectRoom(fileId, submissionId, file.room, file.storage_path)
       .catch(e => console.error("Room detection failed:", e));
   }
 
-  return ok({ confirmed: true, aiStatus: file.file_type === "photo" ? "analyzing" : "skipped" });
+  const { data: updated } = await adminSupabase
+    .from("submission_files")
+    .select("ai_status, ai_is_mismatch, ai_is_invalid, ai_confidence")
+    .eq("id", fileId)
+    .single();
+
+  return ok({
+    confirmed:  true,
+    aiStatus:   updated?.ai_status   ?? "skipped",
+    isMismatch: updated?.ai_is_mismatch ?? false,
+    isInvalid:  updated?.ai_is_invalid  ?? false,
+    confidence: updated?.ai_confidence  ?? 0,
+  });
 }
