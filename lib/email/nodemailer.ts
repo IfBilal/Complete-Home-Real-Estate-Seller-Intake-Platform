@@ -27,7 +27,6 @@ export async function sendAdminAlert(
   const recipients = (admins ?? []).map(a => a.email).filter(Boolean);
   if (recipients.length === 0) return;
 
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/admin`;
   let status = "sent";
   let errorMessage: string | null = null;
 
@@ -48,9 +47,6 @@ export async function sendAdminAlert(
       <tr><td style="padding:8px 0;color:#6b7280">Address</td><td style="padding:8px 0;font-weight:600">${address}</td></tr>
       <tr><td style="padding:8px 0;color:#6b7280">Email</td><td style="padding:8px 0">${sellerEmail}</td></tr>
     </table>
-    <div style="margin-top:24px">
-      <a href="${dashboardUrl}" style="background:#E8541A;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block">View in Dashboard →</a>
-    </div>
   </div>
 </div>`,
     });
