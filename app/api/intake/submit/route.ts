@@ -73,14 +73,13 @@ export async function POST(request: NextRequest) {
     return err("Failed to submit. Please try again.", 500);
   }
 
-  // Non-blocking: emails + AI summary (direct function calls — fix C4)
-  Promise.allSettled([
+  // Await all post-submit tasks so Vercel doesn't kill them before completion
+  const results = await Promise.allSettled([
     sendAdminAlert(submission.id, submission.human_id, submission.first_name ?? "", submission.last_name ?? "", submission.address, submission.email ?? ""),
     sendSellerConfirmation(submission.id, submission.email ?? "", submission.first_name ?? "", submission.human_id),
     generateSummary(submission.id),
-  ]).then(results => {
-    results.forEach(r => { if (r.status === "rejected") console.error("Post-submit task failed:", r.reason); });
-  });
+  ]);
+  results.forEach(r => { if (r.status === "rejected") console.error("Post-submit task failed:", r.reason); });
 
   return ok({ submissionId: submission.id, humanId: submission.human_id }, 200);
 }
