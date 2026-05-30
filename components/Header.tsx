@@ -18,8 +18,8 @@ export default function Header() {
       <div className="utility-bar">
         <div className="container utility-bar-inner">
           <div className="utility-bar-links">
-            <span>(678) 815-9233</span>
-            <span>support@completehome.com</span>
+            <span>(865) 235-1071</span>
+            <span>chstenn@gmail.com</span>
           </div>
           <span className="utility-bar-cta">Trusted by 470+ homeowners nationwide</span>
         </div>

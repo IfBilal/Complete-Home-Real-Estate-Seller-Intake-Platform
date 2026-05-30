@@ -96,7 +96,7 @@ export async function sendSellerConfirmation(
         <li>You receive a private offer with no obligation to accept</li>
       </ol>
     </div>
-    <p style="color:#6b7280;font-size:14px;margin-top:24px">Questions? Reply to this email or call (678) 815-9233.</p>
+    <p style="color:#6b7280;font-size:14px;margin-top:24px">Questions? Reply to this email or call (865) 235-1071.</p>
   </div>
 </div>`,
     });

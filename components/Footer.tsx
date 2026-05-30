@@ -12,8 +12,8 @@ export default function Footer() {
             market review and a stress-free sale.
           </p>
           <div className="footer-contact">
-            <span>(678) 815-9233</span>
-            <span>support@completehome.com</span>
+            <span>(865) 235-1071</span>
+            <span>chstenn@gmail.com</span>
           </div>
         </div>
 
