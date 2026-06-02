@@ -25,41 +25,78 @@ export async function generateSummary(submissionId: string): Promise<AISummary |
     .select("room, file_type, ai_is_mismatch, ai_is_invalid")
     .eq("submission_id", submissionId);
 
+  const prequal_map = (sub.prequal_answers ?? {}) as Record<string, string>;
+
+  const getRoomCondition = (room: string): string | null => {
+    if (room === "Kitchen")     return prequal_map.kitchenCondition    || null;
+    if (room === "Living Room") return prequal_map.livingRoomCondition || null;
+    if (room.startsWith("Bathroom")) return prequal_map.bathroomCondition || null;
+    return null;
+  };
+
+  const roomConditionToSignal = (c: string): string => {
+    if (c === "High end" || c === "Standard") return "good";
+    if (c === "Dated")       return "fair";
+    if (c === "Fixer Upper") return "poor";
+    return "good";
+  };
+
   const roomStats = (sub.rooms as string[]).map(room => {
-    const roomFiles = (files ?? []).filter(f => f.room === room);
-    const photos     = roomFiles.filter(f => f.file_type === "photo");
-    const mismatches = photos.filter(f => f.ai_is_mismatch).length;
-    const invalids   = photos.filter(f => f.ai_is_invalid).length;
-    const flags = [
+    const roomFiles   = (files ?? []).filter(f => f.room === room);
+    const photos      = roomFiles.filter(f => f.file_type === "photo");
+    const mismatches  = photos.filter(f => f.ai_is_mismatch).length;
+    const invalids    = photos.filter(f => f.ai_is_invalid).length;
+    const aiFlags = [
       mismatches > 0 ? `${mismatches} wrong-room flag(s)` : "",
       invalids   > 0 ? `${invalids} unusable photo(s)`    : "",
     ].filter(Boolean).join(", ");
-    return `- ${room}: ${photos.length} photo(s)${flags ? ` — AI flags: ${flags}` : " — no AI flags"}`;
+    const roomCond    = getRoomCondition(room);
+    const condNote    = roomCond ? ` — seller-rated condition: ${roomCond}` : "";
+    return `- ${room}: ${photos.length} photo(s)${aiFlags ? ` — AI flags: ${aiFlags}` : " — no AI flags"}${condNote}`;
   });
 
   const totalMismatches = (files ?? []).filter(f => f.ai_is_mismatch).length;
   const totalInvalids   = (files ?? []).filter(f => f.ai_is_invalid).length;
   const totalAiFlags    = totalMismatches + totalInvalids;
 
-  const prequal = Object.entries(sub.prequal_answers as Record<string, string>)
+  const prequal = Object.entries(prequal_map)
+    .filter(([k]) => !["kitchenCondition","bathroomCondition","livingRoomCondition"].includes(k))
     .map(([k, v]) => `${k}: ${v}`).join(", ");
+
+  // Pre-compute room signals deterministically so AI can't contradict seller room data
+  const roomSignalLines = (sub.rooms as string[]).map(room => {
+    const cond = getRoomCondition(room);
+    if (cond) {
+      const sig = roomConditionToSignal(cond);
+      const label = sig === "good" ? "Good condition" : sig === "fair" ? "Fair condition" : "Needs attention";
+      return `- ${room}: signal="${sig}", label="${label}" (seller-rated: ${cond})`;
+    }
+    // No specific room condition — derive from overall
+    const overall = sub.condition ?? "";
+    const sig = (overall === "Excellent" || overall === "Good") ? "good" : overall === "Fair" ? "fair" : "poor";
+    const label = sig === "good" ? "Good condition" : sig === "fair" ? "Fair condition" : "Needs attention";
+    return `- ${room}: signal="${sig}", label="${label}" (derived from overall: ${overall})`;
+  });
 
   const prompt = `You are a real estate intake analyst writing an internal summary for a buying team. Respond with ONLY valid JSON matching the schema below.
 
-YOUR JOB: Summarize the data the seller actually provided. Your tone must match the seller's condition rating — if they said "Excellent" or "Good", reflect that positively. Do not add concerns that are not in the data.
+YOUR JOB: Summarize the data the seller actually provided. Be accurate — if a room was rated "Fixer Upper", flag it even if the overall property condition is "Good" or "Excellent".
 
 STRICT RULES:
-1. The seller's condition rating is the single strongest signal. Trust it. A seller who says "Excellent" is describing an excellent home — write accordingly.
-2. Only reference rooms listed under "ROOMS WITH PHOTOS". Never mention any room, area, or feature not listed there.
-3. Flags must come from: (a) AI flags in the photo data, OR (b) a condition rating of "Fair" or "Needs Work". If there are zero AI flags and condition is "Good" or "Excellent", the flags array should be empty [].
-4. Do not invent defects, maintenance issues, or recommendations not supported by the data.
-5. Notes for each room should describe what was submitted (photo count, any AI flags) — nothing more.
+1. Use the exact signal/label values from ROOM SIGNALS below — do not change them.
+2. Only reference rooms listed under "ROOMS WITH PHOTOS". Never mention any room not listed.
+3. Flags must come from: (a) AI photo flags, OR (b) room conditions of "Fixer Upper" or "Dated", OR (c) overall condition of "Fair" or "Needs Work".
+4. Do not invent defects not supported by the data.
+5. Room notes: describe photo count and any AI flags only — nothing more.
 
 PROPERTY DATA:
 - Address: ${sub.address}
 - Beds: ${sub.beds ?? "not provided"} | Baths: ${sub.baths ?? "not provided"} | Sqft: ${sub.sqft ?? "not provided"} | Year built: ${sub.year_built ?? "not provided"} | Lot: ${sub.lot_size ?? "not provided"}
-- Seller-rated condition: ${sub.condition ?? "not provided"}
+- Overall seller-rated condition: ${sub.condition ?? "not provided"}
 - Total AI photo flags: ${totalAiFlags} (${totalMismatches} wrong-room, ${totalInvalids} unusable)
+
+ROOM SIGNALS (use these exactly):
+${roomSignalLines.join("\n")}
 
 ROOMS WITH PHOTOS:
 ${roomStats.join("\n")}
@@ -69,10 +106,10 @@ ${prequal || "none collected"}
 
 JSON schema:
 {
-  "overview": "<2-3 sentences summarizing the property based on what the seller provided. Tone must match the condition rating.>",
-  "rooms": [{"room": "<exact room name from list above>", "signal": "<good|fair|poor — driven by condition rating and AI flags>", "label": "<Good condition|Fair condition|Needs attention>", "notes": "<one factual observation: photo count and any AI flags only>"}],
-  "flags": ["<only real flags from AI photo data or a Fair/Needs Work condition rating — empty array if none>"],
-  "assessment": "<2-3 sentences. If condition is Good/Excellent and no AI flags, recommend proceeding. Only flag concerns when the data supports it.>"
+  "overview": "<2-3 sentences summarizing the property. Reflect overall condition but honestly note any room-level concerns.>",
+  "rooms": [{"room": "<exact room name>", "signal": "<copy signal from ROOM SIGNALS>", "label": "<copy label from ROOM SIGNALS>", "notes": "<photo count and AI flags only>"}],
+  "flags": ["<real flags: AI photo flags, Fixer Upper/Dated room conditions, or Fair/Needs Work overall — empty array if none>"],
+  "assessment": "<2-3 sentences. Acknowledge both positives and real concerns from the data.>"
 }`;
 
   try {

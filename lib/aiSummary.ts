@@ -45,7 +45,7 @@ export function getFlags(condition: string): string[] {
       "⚠ Tile grout needs refresh — bathroom"
     ];
   }
-  return ["⚠ Minor paint wear — entry area"];
+  return [];
 }
 
 export function getAssessment(condition: string): string {

@@ -2,9 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const PREQUAL_KEYS = ["ownership", "timeline", "motivation", "mortgage", "liens", "occupancy", "offer_type"] as const;
-const TOTAL_PREQUAL = PREQUAL_KEYS.length;
-
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -15,13 +12,12 @@ interface Props {
 }
 
 export default function IntakeChatbot({ currentStep = 0 }: Props) {
-  const [open,           setOpen]           = useState(false);
-  const [messages,       setMessages]       = useState<Message[]>([]);
-  const [input,          setInput]          = useState("");
-  const [isTyping,       setIsTyping]       = useState(false);
-  const [prequalAnswers, setPrequalAnswers] = useState<Record<string, string>>({});
-  const [unread,         setUnread]         = useState(0);
-  const [hasInited,      setHasInited]      = useState(false);
+  const [open,      setOpen]      = useState(false);
+  const [messages,  setMessages]  = useState<Message[]>([]);
+  const [input,     setInput]     = useState("");
+  const [isTyping,  setIsTyping]  = useState(false);
+  const [unread,    setUnread]    = useState(0);
+  const [hasInited, setHasInited] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef       = useRef<HTMLInputElement>(null);
 
@@ -30,14 +26,6 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // Load saved answers on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("ch_prequal_answers");
-      if (saved) setPrequalAnswers(JSON.parse(saved));
-    } catch { /* ignore */ }
-  }, []);
-
   // Auto-generate opening message the first time the panel is opened
   useEffect(() => {
     if (!open || hasInited) return;
@@ -45,23 +33,18 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
     setUnread(0);
     setIsTyping(true);
 
-    const savedAnswers: Record<string, string> = (() => {
-      try { return JSON.parse(localStorage.getItem("ch_prequal_answers") ?? "{}"); } catch { return {}; }
-    })();
-
     fetch("/api/chatbot", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        messages:         [{ role: "user", content: "__INIT__" }],
-        collectedPrequal: savedAnswers,
+        messages:    [{ role: "user", content: "__INIT__" }],
         currentStep,
-        isInit:           true,
+        isInit:      true,
       }),
     })
       .then(r => r.json().catch(() => ({})))
       .then(json => {
-        const reply: string = json?.data?.reply ?? "Hi! I'm your Complete Home assistant — ask me anything about the form, or I'll ask you a few quick questions as we go.";
+        const reply: string = json?.data?.reply ?? "Hi! I'm your Complete Home assistant — ask me anything about the form.";
         setMessages([{ role: "assistant", content: reply }]);
         if (!open) setUnread(1);
       })
@@ -79,9 +62,6 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
     }
   }, [open]);
 
-  const collectedCount = Object.keys(prequalAnswers).length;
-  const done           = collectedCount >= TOTAL_PREQUAL;
-
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isTyping) return;
@@ -97,8 +77,7 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messages:         nextMessages.slice(-12),
-          collectedPrequal: prequalAnswers,
+          messages:    nextMessages.slice(-12),
           currentStep,
         }),
       });
@@ -106,38 +85,19 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok || !json.success) {
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: "Sorry, I'm having trouble right now. Please try again in a moment.",
-        }]);
+        setMessages(prev => [...prev, { role: "assistant", content: "Sorry, I'm having trouble right now. Please try again in a moment." }]);
         return;
       }
 
-      const { reply, prequalAnswers: newAnswers } = json.data as {
-        reply: string;
-        prequalAnswers: Record<string, string>;
-      };
-
-      // Merge newly detected pre-qual answers
-      if (newAnswers && Object.keys(newAnswers).length > 0) {
-        setPrequalAnswers(prev => {
-          const merged = { ...prev, ...newAnswers };
-          try { localStorage.setItem("ch_prequal_answers", JSON.stringify(merged)); } catch { /* ignore */ }
-          return merged;
-        });
-      }
-
+      const { reply } = json.data as { reply: string };
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
       if (!open) setUnread(prev => prev + 1);
     } catch {
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: "Connection issue — please try again.",
-      }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "Connection issue — please try again." }]);
     } finally {
       setIsTyping(false);
     }
-  }, [messages, prequalAnswers, currentStep, isTyping, open]);
+  }, [messages, currentStep, isTyping, open]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -159,13 +119,7 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
           ? <span className="chatbot-trigger-icon">×</span>
           : <span className="chatbot-trigger-icon">💬</span>
         }
-        {!open && done && (
-          <span className="chatbot-badge chatbot-badge-done">✓</span>
-        )}
-        {!open && !done && collectedCount > 0 && (
-          <span className="chatbot-badge chatbot-badge-progress">{collectedCount}/{TOTAL_PREQUAL}</span>
-        )}
-        {!open && !done && collectedCount === 0 && unread > 0 && (
+        {!open && unread > 0 && (
           <span className="chatbot-badge">{unread}</span>
         )}
       </button>
@@ -191,22 +145,6 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
               aria-label="Close"
             >×</button>
           </div>
-
-          {/* Pre-qual progress bar */}
-          <div className="chatbot-progress-bar">
-            <div
-              className="chatbot-progress-fill"
-              style={{ width: `${Math.round((collectedCount / TOTAL_PREQUAL) * 100)}%` }}
-            />
-          </div>
-
-          {collectedCount > 0 && (
-            <div className="chatbot-counter">
-              {done
-                ? "Pre-qualification complete ✓"
-                : `Pre-qualification: ${collectedCount} / ${TOTAL_PREQUAL}`}
-            </div>
-          )}
 
           {/* Messages */}
           <div className="chatbot-messages">
@@ -237,7 +175,7 @@ export default function IntakeChatbot({ currentStep = 0 }: Props) {
               ref={inputRef}
               type="text"
               className="chatbot-input"
-              placeholder="Ask anything…"
+              placeholder="Ask anything about the form…"
               value={input}
               maxLength={500}
               disabled={isTyping}

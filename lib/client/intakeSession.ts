@@ -18,6 +18,9 @@ export interface IntakeSession {
   // Backend draft
   submissionId:     string | null;
   humanId:          string | null;
+  // Step 0 inline prequal
+  ownershipStatus:  string;
+  dwellingType:     string;
   // Step 1 — Property
   sqft:             string | null;
   beds:             number | null;
@@ -26,8 +29,30 @@ export interface IntakeSession {
   lotSize:          string;
   condition:        string;
   exteriorImageUrl: string | null;
+  // Step 1 prequal
+  saleTimeline:     string;
+  hasHoa:           string;
+  hoaCommunityType: string[];
+  hoaFees:          string;
+  propertyFlags:    string[];
+  hasRenovations:   string;
+  // Step 1 — property-type specific
+  garage:           string;
+  hasPool:          string;
+  basement:         string;
+  unitPosition:     string;
+  unitFloor:        string;
+  sharedEntryway:   string;
+  parking:          string;
+  ownsLand:         string;
+  unitCount:        string;
+  rentalStatus:     string;
   // Step 2 — Rooms
   selectedRooms:    string[];
+  // Step 3 — room conditions
+  kitchenCondition:    string;
+  bathroomCondition:   string;
+  livingRoomCondition: string;
   // Step 4 — Contact
   firstName:        string;
   lastName:         string;
@@ -50,6 +75,8 @@ export const DEFAULT_SESSION: IntakeSession = {
   isConfirmed:      false,
   submissionId:     null,
   humanId:          null,
+  ownershipStatus:  "",
+  dwellingType:     "",
   sqft:             null,
   beds:             null,
   baths:            null,
@@ -57,7 +84,26 @@ export const DEFAULT_SESSION: IntakeSession = {
   lotSize:          "",
   condition:        "",
   exteriorImageUrl: null,
+  saleTimeline:     "",
+  hasHoa:           "",
+  hoaCommunityType: [],
+  hoaFees:          "",
+  propertyFlags:    [],
+  hasRenovations:   "",
+  garage:           "",
+  hasPool:          "",
+  basement:         "",
+  unitPosition:     "",
+  unitFloor:        "",
+  sharedEntryway:   "",
+  parking:          "",
+  ownsLand:         "",
+  unitCount:        "",
+  rentalStatus:     "",
   selectedRooms:    ["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Exterior"],
+  kitchenCondition:    "",
+  bathroomCondition:   "",
+  livingRoomCondition: "",
   firstName:        "",
   lastName:         "",
   email:            "",
@@ -92,3 +138,4 @@ export function clearSession(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(SESSION_KEY);
 }
+  

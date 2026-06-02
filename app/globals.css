@@ -2176,6 +2176,14 @@ button {
   color: var(--neutral-ink-900);
 }
 
+.ai-loading {
+  padding: 24px 0;
+  color: var(--neutral-ink-500);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+}
+
 .summary-address {
   margin: 0 0 8px;
   font-weight: 600;
@@ -6668,5 +6676,186 @@ button {
   .admin-workspace-right {
     gap: 16px;
     flex-wrap: wrap;
+  }
+}
+
+/* ── Prequal Question Blocks ─────────────────────────────────────────────── */
+.prequal-block {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.prequal-question {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1C1008;
+  margin-bottom: 0.25rem;
+}
+
+.prequal-subtext {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 1rem;
+}
+
+.prequal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prequal-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1.1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #374151;
+  transition: border-color 150ms, background 150ms;
+  width: 100%;
+}
+
+.prequal-option:hover {
+  border-color: #E8541A;
+  background: rgba(232, 84, 26, 0.04);
+}
+
+.prequal-option.selected {
+  border-color: #E8541A;
+  background: rgba(232, 84, 26, 0.07);
+  color: #1C1008;
+  font-weight: 600;
+}
+
+.prequal-option-check {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  margin-top: 1px;
+  transition: background 150ms, border-color 150ms;
+}
+
+.prequal-option.selected .prequal-option-check {
+  background: #E8541A;
+  border-color: #E8541A;
+  color: #fff;
+}
+
+.prequal-option-label {
+  flex: 1;
+}
+
+.prequal-option-desc {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.prequal-option.selected .prequal-option-desc {
+  color: #E8541A;
+  opacity: 0.85;
+}
+
+.prequal-optional-label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-left: 6px;
+  font-weight: 400;
+}
+
+.prequal-hoa-input {
+  margin-top: 0.75rem;
+}
+
+.prequal-hoa-input input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1C1008;
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.prequal-hoa-input input:focus {
+  border-color: #E8541A;
+}
+
+.room-condition-block {
+  margin-top: 1.25rem;
+  padding: 1.1rem 1.1rem 1rem;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+}
+
+.room-condition-question {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1C1008;
+  margin-bottom: 0.75rem;
+}
+
+.room-condition-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.room-condition-option {
+  padding: 0.65rem 0.85rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #374151;
+  transition: border-color 150ms, background 150ms;
+}
+
+.room-condition-option:hover {
+  border-color: #E8541A;
+  background: rgba(232, 84, 26, 0.04);
+}
+
+.room-condition-option.selected {
+  border-color: #E8541A;
+  background: rgba(232, 84, 26, 0.07);
+  color: #1C1008;
+  font-weight: 600;
+}
+
+.room-condition-option-desc {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.room-condition-option.selected .room-condition-option-desc {
+  color: #E8541A;
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .room-condition-options {
+    grid-template-columns: 1fr;
   }
 }

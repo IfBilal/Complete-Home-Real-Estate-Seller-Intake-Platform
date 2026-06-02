@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import imageCompression from "browser-image-compression";
 import IntakeChatbot from "../../components/IntakeChatbot";
-import { getRoomSignal, getSignalLabel, getOverview, getFlags, getAssessment } from "../../lib/aiSummary";
 import { apiFetch } from "../../lib/client/apiClient";
 import { loadSession, saveSession, clearSession, DEFAULT_SESSION, type IntakeSession } from "../../lib/client/intakeSession";
 import type { PlacesAutocompleteResult, PlaceDetails, UploadStatusResponse } from "../../lib/types";
 
 const steps = ["Address", "Property", "Rooms", "Uploads", "Contact", "Review"];
+
 
 interface UploadItem {
   id: string;
@@ -114,15 +114,39 @@ function UploadSlot({ item, isVideo, room, onUpload, onRemove, onDismiss }: Uplo
 // ─── Constants ────────────────────────────────────────────────────────────────
 const baseRooms = ["Kitchen", "Living Room", "Exterior", "Garage", "Backyard"];
 
-const PREQUAL_LABELS: Record<string, string> = {
-  ownership:  "Ownership",
-  timeline:   "Timeline",
-  motivation: "Reason for Selling",
-  mortgage:   "Mortgage",
-  liens:      "Liens / Judgments",
-  occupancy:  "Occupancy",
-  offer_type: "Offer Preference"
-};
+// ─── Prequal helper components ────────────────────────────────────────────────
+function ChoiceGroup({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="prequal-options">
+      {options.map(opt => (
+        <button key={opt} type="button" className={`prequal-option${value === opt ? " selected" : ""}`} onClick={() => onChange(opt)}>
+          <span className="prequal-option-label">{opt}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MultiChoiceGroup({ options, values, onChange }: { options: Array<{ label: string; desc?: string }>; values: string[]; onChange: (v: string[]) => void }) {
+  const toggle = (label: string) => {
+    if (label === "None of the above") { onChange(["None of the above"]); return; }
+    const filtered = values.filter(v => v !== "None of the above");
+    onChange(filtered.includes(label) ? filtered.filter(v => v !== label) : [...filtered, label]);
+  };
+  return (
+    <div className="prequal-options">
+      {options.map(({ label, desc }) => (
+        <button key={label} type="button" className={`prequal-option${values.includes(label) ? " selected" : ""}`} onClick={() => toggle(label)}>
+          <span className="prequal-option-check">{values.includes(label) ? "✓" : ""}</span>
+          <span className="prequal-option-label">
+            {label}
+            {desc && <span className="prequal-option-desc">{desc}</span>}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 const addressSchema = z.object({
@@ -191,6 +215,34 @@ export default function IntakePage() {
   const [lotSize, setLotSize]     = useState("");
   const [condition, setCondition] = useState("");
 
+  // ── Prequal — Step 0 inline
+  const [ownershipStatus, setOwnershipStatus] = useState("");
+  const [dwellingType,    setDwellingType]    = useState("");
+
+  // ── Prequal — Step 1
+  const [saleTimeline,     setSaleTimeline]     = useState("");
+  const [hasHoa,           setHasHoa]           = useState("");
+  const [hoaCommunityType, setHoaCommunityType] = useState<string[]>([]);
+  const [hoaFees,          setHoaFees]          = useState("");
+  const [propertyFlags,    setPropertyFlags]    = useState<string[]>([]);
+  const [hasRenovations,   setHasRenovations]   = useState("");
+  // Property-type specific
+  const [garage,         setGarage]         = useState("");
+  const [hasPool,        setHasPool]        = useState("");
+  const [basement,       setBasement]       = useState("");
+  const [unitPosition,   setUnitPosition]   = useState("");
+  const [unitFloor,      setUnitFloor]      = useState("");
+  const [sharedEntryway, setSharedEntryway] = useState("");
+  const [parking,        setParking]        = useState("");
+  const [ownsLand,       setOwnsLand]       = useState("");
+  const [unitCount,      setUnitCount]      = useState("");
+  const [rentalStatus,   setRentalStatus]   = useState("");
+
+  // ── Prequal — Step 3 room conditions
+  const [kitchenCondition,    setKitchenCondition]    = useState("");
+  const [bathroomCondition,   setBathroomCondition]   = useState("");
+  const [livingRoomCondition, setLivingRoomCondition] = useState("");
+
   // ── Errors
   const [errors, setErrors]               = useState<{ address?: string; rooms?: string; uploads?: string; submit?: string }>({});
   const [propertyErrors, setPropertyErrors] = useState<{ beds?: string; baths?: string; yearBuilt?: string; lotSize?: string; condition?: string }>({});
@@ -229,7 +281,6 @@ export default function IntakePage() {
   const [phone, setPhone]         = useState("");
 
   // ── Review step
-  const [prequalAnswers, setPrequalAnswers] = useState<Record<string, string>>({});
   const [showSuccess, setShowSuccess]       = useState(false);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
 
@@ -269,14 +320,8 @@ export default function IntakePage() {
     return () => clearTimeout(t);
   }, [router, showSuccess]);
 
-  // ─── Load pre-qual answers on Review step ────────────────────────────────
-  useEffect(() => {
-    if (currentStep !== steps.length - 1) return;
-    try {
-      const raw = localStorage.getItem("ch_prequal_answers");
-      if (raw) setPrequalAnswers(JSON.parse(raw));
-    } catch { /* ignore */ }
-  }, [currentStep]);
+// ─── Compile prequal answers for review + submit ─────────────────────────
+  // (answers live in state — no localStorage needed)
 
   // ─── Restore session on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -295,6 +340,27 @@ export default function IntakePage() {
     setYearBuilt(s.yearBuilt);
     setLotSize(s.lotSize);
     setCondition(s.condition);
+    setOwnershipStatus(s.ownershipStatus);
+    setDwellingType(s.dwellingType);
+    setSaleTimeline(s.saleTimeline);
+    setHasHoa(s.hasHoa);
+    setHoaCommunityType(s.hoaCommunityType);
+    setHoaFees(s.hoaFees);
+    setPropertyFlags(s.propertyFlags);
+    setHasRenovations(s.hasRenovations);
+    setGarage(s.garage);
+    setHasPool(s.hasPool);
+    setBasement(s.basement);
+    setUnitPosition(s.unitPosition);
+    setUnitFloor(s.unitFloor);
+    setSharedEntryway(s.sharedEntryway);
+    setParking(s.parking);
+    setOwnsLand(s.ownsLand);
+    setUnitCount(s.unitCount);
+    setRentalStatus(s.rentalStatus);
+    setKitchenCondition(s.kitchenCondition);
+    setBathroomCondition(s.bathroomCondition);
+    setLivingRoomCondition(s.livingRoomCondition);
     setSelectedRooms(s.selectedRooms);
     setFirstName(s.firstName);
     setLastName(s.lastName);
@@ -319,6 +385,27 @@ export default function IntakePage() {
         yearBuilt,
         lotSize,
         condition,
+        ownershipStatus,
+        dwellingType,
+        saleTimeline,
+        hasHoa,
+        hoaCommunityType,
+        hoaFees,
+        propertyFlags,
+        hasRenovations,
+        garage,
+        hasPool,
+        basement,
+        unitPosition,
+        unitFloor,
+        sharedEntryway,
+        parking,
+        ownsLand,
+        unitCount,
+        rentalStatus,
+        kitchenCondition,
+        bathroomCondition,
+        livingRoomCondition,
         selectedRooms,
         firstName,
         lastName,
@@ -329,7 +416,7 @@ export default function IntakePage() {
       });
     }, 800);
     return () => clearTimeout(t);
-  }, [session, currentStep, addressQuery, isConfirmed, sqft, beds, baths, yearBuilt, lotSize, condition, selectedRooms, firstName, lastName, email, phone, exteriorImageUrl]);
+  }, [session, currentStep, addressQuery, isConfirmed, sqft, beds, baths, yearBuilt, lotSize, condition, ownershipStatus, dwellingType, saleTimeline, hasHoa, hoaCommunityType, hoaFees, propertyFlags, hasRenovations, garage, hasPool, basement, unitPosition, unitFloor, sharedEntryway, parking, ownsLand, unitCount, rentalStatus, kitchenCondition, bathroomCondition, livingRoomCondition, selectedRooms, firstName, lastName, email, phone, exteriorImageUrl]);
 
   // ─── Address autocomplete — debounced 300ms ───────────────────────────────
   useEffect(() => {
@@ -353,13 +440,11 @@ export default function IntakePage() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleStartFresh = () => {
     clearSession();
-    localStorage.removeItem("ch_prequal_answers");
     setShowResumeBanner(false);
     setSession(DEFAULT_SESSION);
     setCurrentStep(0);
     setAddressQuery("");
     setIsConfirmed(false);
-    
     setSuggestions([]);
     setExteriorImageUrl(null);
     setSqft(null);
@@ -368,6 +453,27 @@ export default function IntakePage() {
     setYearBuilt("");
     setLotSize("");
     setCondition("");
+    setOwnershipStatus("");
+    setDwellingType("");
+    setSaleTimeline("");
+    setHasHoa("");
+    setHoaCommunityType([]);
+    setHoaFees("");
+    setPropertyFlags([]);
+    setHasRenovations("");
+    setGarage("");
+    setHasPool("");
+    setBasement("");
+    setUnitPosition("");
+    setUnitFloor("");
+    setSharedEntryway("");
+    setParking("");
+    setOwnsLand("");
+    setUnitCount("");
+    setRentalStatus("");
+    setKitchenCondition("");
+    setBathroomCondition("");
+    setLivingRoomCondition("");
     setSelectedRooms(["Kitchen", "Living Room", "Bedroom 1", "Bathroom 1", "Exterior"]);
     setUploads({});
     setFirstName("");
@@ -647,6 +753,14 @@ export default function IntakePage() {
         setErrors({ address: "Confirm the address to continue." });
         return false;
       }
+      if (!ownershipStatus) {
+        setErrors({ address: "Please answer whether you own this home." });
+        return false;
+      }
+      if (!dwellingType) {
+        setErrors({ address: "Please select the type of home." });
+        return false;
+      }
     }
 
     if (step === 1) {
@@ -659,6 +773,42 @@ export default function IntakePage() {
         }
         setPropertyErrors(fieldErrors);
         return false;
+      }
+      if (!saleTimeline) { setErrors({ address: "Please select your sale timeline." }); return false; }
+      if (!hasHoa)        { setErrors({ address: "Please answer the HOA question." }); return false; }
+      if (hasHoa === "Yes" && hoaCommunityType.length === 0) { setErrors({ address: "Please select a community type." }); return false; }
+      if (propertyFlags.length === 0) { setErrors({ address: "Please answer the property flags question." }); return false; }
+      if (!hasRenovations) { setErrors({ address: "Please answer the renovations question." }); return false; }
+      // Type-specific required fields
+      if ((dwellingType === "Single-family" || dwellingType === "Townhouse") && !garage) {
+        setErrors({ address: "Please select your garage situation." }); return false;
+      }
+      if (dwellingType === "Single-family" && !hasPool) {
+        setErrors({ address: "Please answer whether you have a pool." }); return false;
+      }
+      if (dwellingType === "Single-family" && !basement) {
+        setErrors({ address: "Please select your basement situation." }); return false;
+      }
+      if (dwellingType === "Townhouse" && !unitPosition) {
+        setErrors({ address: "Please select your unit position." }); return false;
+      }
+      if (dwellingType === "Apartment or condo" && !unitFloor) {
+        setErrors({ address: "Please select your floor." }); return false;
+      }
+      if (dwellingType === "Apartment or condo" && !sharedEntryway) {
+        setErrors({ address: "Please answer the entryway question." }); return false;
+      }
+      if (dwellingType === "Apartment or condo" && !parking) {
+        setErrors({ address: "Please select your parking situation." }); return false;
+      }
+      if (dwellingType === "Mobile home" && !ownsLand) {
+        setErrors({ address: "Please answer whether you own the land." }); return false;
+      }
+      if (dwellingType === "Multi-family" && !unitCount) {
+        setErrors({ address: "Please select the number of units." }); return false;
+      }
+      if (dwellingType === "Multi-family" && !rentalStatus) {
+        setErrors({ address: "Please select the rental status." }); return false;
       }
     }
 
@@ -688,6 +838,16 @@ export default function IntakePage() {
       if (incompleteRooms.length > 0) {
         setErrors({ uploads: `Please complete uploads for: ${incompleteRooms.map(r => r.room).join(", ")}. Each room needs 3 photos and 1 video.` });
         return false;
+      }
+      // Room condition questions
+      if (selectedRooms.some(r => r === "Kitchen") && !kitchenCondition) {
+        setErrors({ uploads: "Please describe your kitchen condition before continuing." }); return false;
+      }
+      if (selectedRooms.includes("Living Room") && !livingRoomCondition) {
+        setErrors({ uploads: "Please describe your living room condition before continuing." }); return false;
+      }
+      if (selectedRooms.some(r => r.startsWith("Bathroom")) && !bathroomCondition) {
+        setErrors({ uploads: "Please describe your bathroom condition before continuing." }); return false;
       }
     }
 
@@ -921,6 +1081,23 @@ export default function IntakePage() {
                       )}
                     </div>
                   )}
+                  {isConfirmed && (
+                    <div className="prequal-block">
+                      <p className="prequal-question">Do you own this home?</p>
+                      <ChoiceGroup
+                        options={["Yes, I own it", "Yes, with a co-owner", "No, I'm renting"]}
+                        value={ownershipStatus}
+                        onChange={setOwnershipStatus}
+                      />
+                      <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What type of property is this?</p>
+                      <p className="prequal-subtext">Select the option that best describes your home.</p>
+                      <ChoiceGroup
+                        options={["Single-family", "Townhouse", "Apartment or condo", "Mobile home", "Multi-family"]}
+                        value={dwellingType}
+                        onChange={setDwellingType}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -999,6 +1176,157 @@ export default function IntakePage() {
                       {propertyErrors.condition && <p className="field-error">{propertyErrors.condition}</p>}
                       <p className="helper-text">Select the best match.</p>
                     </div>
+                  </div>
+
+                  <div className="prequal-block">
+                    <p className="prequal-question">When are you looking to sell?</p>
+                    <ChoiceGroup
+                      options={["ASAP", "1–3 months", "3–6 months", "6–12 months", "Just exploring"]}
+                      value={saleTimeline}
+                      onChange={setSaleTimeline}
+                    />
+
+                    <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Is there a homeowners association (HOA)?</p>
+                    <ChoiceGroup options={["Yes", "No", "Not sure"]} value={hasHoa} onChange={setHasHoa} />
+
+                    {hasHoa === "Yes" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What type of community?</p>
+                        <p className="prequal-subtext">Select all that apply.</p>
+                        <MultiChoiceGroup
+                          options={[
+                            { label: "Gated community" },
+                            { label: "Condo association" },
+                            { label: "Neighborhood HOA" },
+                            { label: "Other" },
+                          ]}
+                          values={hoaCommunityType}
+                          onChange={setHoaCommunityType}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Monthly HOA fee <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></p>
+                        <input
+                          className="text-input"
+                          type="text"
+                          placeholder="e.g. $250/month"
+                          value={hoaFees}
+                          onChange={e => setHoaFees(e.target.value)}
+                          style={{ maxWidth: "240px" }}
+                        />
+                      </>
+                    )}
+
+                    <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Any known issues with the property?</p>
+                    <p className="prequal-subtext">Select all that apply.</p>
+                    <MultiChoiceGroup
+                      options={[
+                        { label: "Foundation issues" },
+                        { label: "Roof needs repair" },
+                        { label: "Water damage or mold" },
+                        { label: "Fire damage" },
+                        { label: "Code violations" },
+                        { label: "None of the above" },
+                      ]}
+                      values={propertyFlags}
+                      onChange={setPropertyFlags}
+                    />
+
+                    <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Have there been any major renovations?</p>
+                    <ChoiceGroup
+                      options={["Yes, recently (last 5 years)", "Yes, older (5+ years ago)", "No renovations"]}
+                      value={hasRenovations}
+                      onChange={setHasRenovations}
+                    />
+
+                    {dwellingType === "Single-family" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What&apos;s your garage situation?</p>
+                        <ChoiceGroup
+                          options={["Attached garage", "Detached garage", "Carport", "No garage"]}
+                          value={garage}
+                          onChange={setGarage}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Does the home have a pool?</p>
+                        <ChoiceGroup
+                          options={["Yes, inground", "Yes, above ground", "No"]}
+                          value={hasPool}
+                          onChange={setHasPool}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Does the home have a basement?</p>
+                        <ChoiceGroup
+                          options={["Yes, finished", "Yes, unfinished", "No basement"]}
+                          value={basement}
+                          onChange={setBasement}
+                        />
+                      </>
+                    )}
+
+                    {dwellingType === "Townhouse" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What&apos;s your garage situation?</p>
+                        <ChoiceGroup
+                          options={["Attached garage", "Detached garage", "Carport", "No garage"]}
+                          value={garage}
+                          onChange={setGarage}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Where is the unit located?</p>
+                        <ChoiceGroup
+                          options={["End unit", "Middle unit", "Corner unit"]}
+                          value={unitPosition}
+                          onChange={setUnitPosition}
+                        />
+                      </>
+                    )}
+
+                    {dwellingType === "Apartment or condo" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What floor is the unit on?</p>
+                        <ChoiceGroup
+                          options={["Ground floor", "2nd–5th floor", "6th+ floor", "Top floor"]}
+                          value={unitFloor}
+                          onChange={setUnitFloor}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Shared or private entryway?</p>
+                        <ChoiceGroup
+                          options={["Shared hallway", "Private entry"]}
+                          value={sharedEntryway}
+                          onChange={setSharedEntryway}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What&apos;s the parking situation?</p>
+                        <ChoiceGroup
+                          options={["Assigned parking", "Garage parking", "Street parking", "No parking"]}
+                          value={parking}
+                          onChange={setParking}
+                        />
+                      </>
+                    )}
+
+                    {dwellingType === "Mobile home" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>Do you own the land?</p>
+                        <ChoiceGroup
+                          options={["Yes, I own the land", "No, land is rented"]}
+                          value={ownsLand}
+                          onChange={setOwnsLand}
+                        />
+                      </>
+                    )}
+
+                    {dwellingType === "Multi-family" && (
+                      <>
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>How many units does the property have?</p>
+                        <ChoiceGroup
+                          options={["2 units (duplex)", "3 units", "4 units", "5+ units"]}
+                          value={unitCount}
+                          onChange={setUnitCount}
+                        />
+                        <p className="prequal-question" style={{ marginTop: "1.5rem" }}>What is the current rental status?</p>
+                        <ChoiceGroup
+                          options={["All units rented", "Some units rented", "Owner-occupied", "All units vacant"]}
+                          value={rentalStatus}
+                          onChange={setRentalStatus}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -1091,6 +1419,31 @@ export default function IntakePage() {
                                   onDismiss={id => dismissFlag(panel, id)}
                                 />
                               </div>
+                              {(panel === "Kitchen" || panel === "Living Room" || panel.startsWith("Bathroom")) && (
+                                <div className="room-condition-block">
+                                  <p className="room-condition-question">
+                                    How would you describe the{" "}
+                                    {panel === "Kitchen" ? "kitchen" : panel === "Living Room" ? "living room" : "bathroom"}{" "}
+                                    condition?
+                                  </p>
+                                  <div className="room-condition-options">
+                                    {["Fixer Upper", "Dated", "Standard", "High end"].map(opt => {
+                                      const current = panel === "Kitchen" ? kitchenCondition : panel === "Living Room" ? livingRoomCondition : bathroomCondition;
+                                      const setter  = panel === "Kitchen" ? setKitchenCondition : panel === "Living Room" ? setLivingRoomCondition : setBathroomCondition;
+                                      return (
+                                        <button
+                                          key={opt}
+                                          type="button"
+                                          className={`room-condition-option${current === opt ? " selected" : ""}`}
+                                          onClick={() => setter(opt)}
+                                        >
+                                          {opt}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1165,42 +1518,6 @@ export default function IntakePage() {
                         </div>
                       </div>
 
-                      <div className="ai-summary-card">
-                        <div className="ai-header">
-                          <h3>AI Summary (Preview)</h3>
-                          <span className="ai-badge">Estimated · Final generated after review</span>
-                        </div>
-                        <div className="admin-ai-card">
-                          <div className="ai-summary-section">
-                            <h5>Property Overview</h5>
-                            <p>{getOverview(condition, beds, baths)}</p>
-                          </div>
-                          <div className="ai-summary-section">
-                            <h5>Condition by Room</h5>
-                            <div className="ai-room-grid">
-                              {selectedRooms.map(room => {
-                                const signal = getRoomSignal(room, condition);
-                                return (
-                                  <div key={room} className="ai-room-row">
-                                    <span className="ai-room-name">{room}</span>
-                                    <span className={`ai-room-signal ai-signal-${signal}`}>{getSignalLabel(signal)}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                          <div className="ai-summary-section">
-                            <h5>Visible Flags</h5>
-                            <div className="admin-ai-flags">
-                              {getFlags(condition).map(flag => <span key={flag}>{flag}</span>)}
-                            </div>
-                          </div>
-                          <div className="ai-summary-section">
-                            <h5>Overall Assessment</h5>
-                            <p className="ai-overall">{getAssessment(condition)}</p>
-                          </div>
-                        </div>
-                      </div>
                     </div>
 
                     <div className="review-right">
@@ -1228,19 +1545,37 @@ export default function IntakePage() {
                       </div>
 
                       <div className="prequal-card">
-                        <h3>Pre‑Qualification Answers</h3>
-                        {Object.keys(prequalAnswers).length > 0 ? (
-                          <div className="prequal-list">
-                            {Object.entries(prequalAnswers).map(([key, value]) => (
-                              <div key={key}>
-                                <span>{PREQUAL_LABELS[key] ?? key}</span>
-                                <strong>{value}</strong>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="prequal-empty">Complete the pre-qualification chat to see your answers here.</p>
-                        )}
+                        <h3>Pre-Qualification Answers</h3>
+                        <div className="prequal-list">
+                          {[
+                            { label: "Ownership",       value: ownershipStatus },
+                            { label: "Property type",   value: dwellingType },
+                            { label: "Sale timeline",   value: saleTimeline },
+                            { label: "HOA",             value: hasHoa },
+                            ...(hasHoa === "Yes" && hoaCommunityType.length > 0 ? [{ label: "Community type", value: hoaCommunityType.join(", ") }] : []),
+                            ...(hasHoa === "Yes" && hoaFees ? [{ label: "HOA fees", value: hoaFees }] : []),
+                            { label: "Property issues", value: propertyFlags.join(", ") || "" },
+                            { label: "Renovations",     value: hasRenovations },
+                            ...((dwellingType === "Single-family" || dwellingType === "Townhouse") && garage ? [{ label: "Garage", value: garage }] : []),
+                            ...(dwellingType === "Single-family" && hasPool    ? [{ label: "Pool",          value: hasPool }]    : []),
+                            ...(dwellingType === "Single-family" && basement   ? [{ label: "Basement",      value: basement }]   : []),
+                            ...(dwellingType === "Townhouse"     && unitPosition ? [{ label: "Unit position", value: unitPosition }] : []),
+                            ...(dwellingType === "Apartment or condo" && unitFloor     ? [{ label: "Floor",     value: unitFloor }]     : []),
+                            ...(dwellingType === "Apartment or condo" && sharedEntryway ? [{ label: "Entryway", value: sharedEntryway }] : []),
+                            ...(dwellingType === "Apartment or condo" && parking        ? [{ label: "Parking",  value: parking }]        : []),
+                            ...(dwellingType === "Mobile home"   && ownsLand    ? [{ label: "Owns land",    value: ownsLand }]    : []),
+                            ...(dwellingType === "Multi-family"  && unitCount   ? [{ label: "Unit count",   value: unitCount }]   : []),
+                            ...(dwellingType === "Multi-family"  && rentalStatus ? [{ label: "Rental status", value: rentalStatus }] : []),
+                            ...(selectedRooms.includes("Kitchen")                          && kitchenCondition    ? [{ label: "Kitchen condition",     value: kitchenCondition }]    : []),
+                            ...(selectedRooms.includes("Living Room")                      && livingRoomCondition ? [{ label: "Living room condition",  value: livingRoomCondition }] : []),
+                            ...(selectedRooms.some(r => r.startsWith("Bathroom"))          && bathroomCondition   ? [{ label: "Bathroom condition",     value: bathroomCondition }]   : []),
+                          ].filter(a => a.value).map(({ label, value }) => (
+                            <div key={label}>
+                              <span>{label}</span>
+                              <strong>{value}</strong>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1276,11 +1611,32 @@ export default function IntakePage() {
                             lotSize:        lotSize || undefined,
                             condition:      condition || undefined,
                             rooms:          selectedRooms,
-                            prequalAnswers,
+                            prequalAnswers: {
+                              ...(ownershipStatus && { ownershipStatus }),
+                              ...(dwellingType && { dwellingType }),
+                              ...(saleTimeline && { saleTimeline }),
+                              ...(hasHoa && { hasHoa }),
+                              ...(hasHoa === "Yes" && hoaCommunityType.length > 0 && { hoaCommunityType: hoaCommunityType.join(", ") }),
+                              ...(hasHoa === "Yes" && hoaFees && { hoaFees }),
+                              ...(propertyFlags.length > 0 && { propertyFlags: propertyFlags.join(", ") }),
+                              ...(hasRenovations && { hasRenovations }),
+                              ...((dwellingType === "Single-family" || dwellingType === "Townhouse") && garage && { garage }),
+                              ...(dwellingType === "Single-family" && hasPool && { hasPool }),
+                              ...(dwellingType === "Single-family" && basement && { basement }),
+                              ...(dwellingType === "Townhouse" && unitPosition && { unitPosition }),
+                              ...(dwellingType === "Apartment or condo" && unitFloor && { unitFloor }),
+                              ...(dwellingType === "Apartment or condo" && sharedEntryway && { sharedEntryway }),
+                              ...(dwellingType === "Apartment or condo" && parking && { parking }),
+                              ...(dwellingType === "Mobile home" && ownsLand && { ownsLand }),
+                              ...(dwellingType === "Multi-family" && unitCount && { unitCount }),
+                              ...(dwellingType === "Multi-family" && rentalStatus && { rentalStatus }),
+                              ...(selectedRooms.includes("Kitchen") && kitchenCondition && { kitchenCondition }),
+                              ...(selectedRooms.includes("Living Room") && livingRoomCondition && { livingRoomCondition }),
+                              ...(selectedRooms.some(r => r.startsWith("Bathroom")) && bathroomCondition && { bathroomCondition }),
+                            },
                           }),
                         });
                         clearSession();
-                        localStorage.removeItem("ch_prequal_answers");
                         setShowSuccess(true);
                       } catch (e: unknown) {
                         const msg = e instanceof Error ? e.message : "Submission failed. Please try again.";
