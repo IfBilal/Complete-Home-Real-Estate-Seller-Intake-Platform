@@ -6859,3 +6859,131 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   SMALL PHONE — 375px and below (iPhone SE, Galaxy A series)
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 375px) {
+
+  /* ── Container: tighter horizontal padding ── */
+  :root { --container-pad: 12px; }
+
+  /* ── Intake hero ── */
+  .intake-hero           { padding: 24px 0 20px; }
+  .intake-hero-text h1   { font-size: 22px; }
+  .intake-hero-text p    { font-size: 13px; }
+  .intake-body           { padding: 20px 0 48px; }
+  .intake-progress       { padding: 10px; }
+
+  /* ── Stepper: dots only, 3-col → tighten gap ── */
+  .stepper-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .step-label      { display: none; }
+  .step-indicator  { width: 24px; height: 24px; font-size: 11px; }
+
+  /* ── Intake card ── */
+  .intake-card           { padding: 14px 12px; border-radius: 14px; }
+  .intake-step-header h2 { font-size: 17px; }
+  .intake-step-count     { font-size: 11px; }
+  .intake-step-help      { font-size: 12px; }
+
+  /* ── Back/Continue nav ── */
+  .intake-nav { gap: 8px; margin-top: 14px; }
+
+  /* ── Resume banner: compress on tiny screens ── */
+  .resume-banner        { padding: 10px 12px; gap: 8px; margin-bottom: 14px; }
+  .resume-banner-icon   { font-size: 16px; }
+  .resume-banner-text strong { font-size: 13px; }
+  .resume-banner-text span   { font-size: 11px; }
+  .resume-fresh-btn     { font-size: 12px; padding: 4px 8px; }
+
+  /* ── Address step ── */
+  .address-step { gap: 14px; }
+
+  /* ── Property confirmation card: stack vertically on tiny screens ── */
+  .property-card        { flex-direction: column; }
+  .property-image       { width: 100%; min-width: unset; height: 80px; }
+  .property-address     { font-size: 12px; }
+  .property-actions     { padding: 8px 10px; }
+  .property-buttons     { flex-direction: column; }
+  .property-buttons .button-secondary,
+  .property-buttons .button-primary { flex: unset; width: 100%; font-size: 13px; }
+
+  /* ── Form grid: force single column ── */
+  .form-grid { grid-template-columns: 1fr !important; gap: 12px; }
+
+  /* ── Segmented control (beds/baths): wrap tighter ── */
+  .segmented-control    { gap: 5px; }
+  .segmented-control button { min-width: 30px; padding: 7px 0; font-size: 13px; }
+  .segmented-custom-input { width: 100px !important; }
+
+  /* ── Room selector grid: 2-col (already) — tighten ── */
+  .room-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .room-card { padding: 12px 8px; border-radius: 10px; }
+  .room-icon  { font-size: 20px; }
+  .room-label { font-size: 12px; }
+  .room-state { font-size: 10px; }
+
+  /* ── Upload panels ── */
+  .upload-panel-body    { padding: 12px; gap: 12px; }
+  .upload-slot-grid     { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .upload-slot          { min-height: 90px; border-radius: 10px; }
+  .upload-panel-room    { font-size: 13px; }
+  .upload-panel-meta    { font-size: 11px; }
+
+  /* ── Room condition questions ── */
+  .room-condition-block      { padding: 0.9rem 0.9rem 0.8rem; }
+  .room-condition-question   { font-size: 0.82rem; }
+  .room-condition-options    { grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .room-condition-option     { padding: 0.55rem 0.65rem; font-size: 0.78rem; }
+
+  /* ── Prequal block ── */
+  .prequal-block       { margin-top: 1.25rem; padding-top: 1.25rem; }
+  .prequal-question    { font-size: 0.92rem; }
+  .prequal-option      { padding: 0.7rem 0.9rem; font-size: 0.85rem; }
+  .prequal-options     { gap: 0.4rem; }
+
+  /* ── Contact step ── */
+  .contact-note { font-size: 12px; }
+
+  /* ── Review step ── */
+  .summary-card,
+  .gallery-card,
+  .prequal-card { padding: 12px; }
+
+  .gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .gallery-tile { height: 70px; border-radius: 8px; }
+
+  .prequal-list > div { font-size: 12px; gap: 4px; }
+
+  /* ── Submit button ── */
+  .submit-button { font-size: 14px; padding: 13px 20px; }
+}
+
+/* ══════════════════════════════════════════════════════
+   VERY SMALL — 320px (older iPhones, small Androids)
+   ══════════════════════════════════════════════════════ */
+@media (max-width: 320px) {
+  :root { --container-pad: 10px; }
+
+  .intake-hero-text h1  { font-size: 19px; }
+  .intake-card          { padding: 12px 10px; }
+  .intake-step-header h2 { font-size: 15px; }
+
+  /* Single-column uploads on truly tiny screens */
+  .upload-slot-grid     { grid-template-columns: 1fr; }
+  .room-condition-options { grid-template-columns: 1fr; }
+
+  /* Stepper: just dots, no labels */
+  .stepper-steps        { gap: 4px; }
+  .step-indicator       { width: 22px; height: 22px; font-size: 10px; }
+
+  .prequal-option       { padding: 0.6rem 0.75rem; font-size: 0.82rem; }
+  .gallery-grid         { grid-template-columns: 1fr; }
+  .gallery-tile         { height: 80px; }
+}
