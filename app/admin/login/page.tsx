@@ -108,7 +108,7 @@ export default function AdminLoginPage() {
       <div className="al-left">
         <div className="al-left-inner">
           <Link href="/" className="al-brand">
-            <Image src="/logo.jpeg" alt="Complete Home" width={40} height={40} className="al-brand-logo" />
+            <Image src="/logo.png" alt="Complete Home" width={40} height={40} className="al-brand-logo" />
             <div>
               <strong>Complete Home</strong>
               <span>Real Estate Experts</span>

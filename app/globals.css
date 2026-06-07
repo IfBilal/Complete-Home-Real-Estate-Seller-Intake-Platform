@@ -335,11 +335,15 @@ button {
 }
 
 .brand-logo {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  object-fit: cover;
-  background: var(--neutral-white);
+  width: 160px;
+  height: 80px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #fff;
+  filter: sepia(0.45) saturate(1.4);
+  box-shadow:
+    0 0 0 2px rgba(28, 16, 8, 0.5),
+    0 0 24px 10px rgba(28, 16, 8, 0.85);
 }
 
 .brand-text {
@@ -365,7 +369,7 @@ button {
 }
 
 .header-inner {
-  height: 64px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -373,7 +377,7 @@ button {
 
 @media (min-width: 1024px) {
   .header-inner {
-    height: 72px;
+    height: 96px;
   }
 }
 

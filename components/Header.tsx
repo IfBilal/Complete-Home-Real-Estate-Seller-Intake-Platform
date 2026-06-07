@@ -28,17 +28,13 @@ export default function Header() {
         <div className="container header-inner">
           <Link href="/" aria-label="Complete Home" className="brand">
             <Image
-              src="/logo.jpeg"
+              src="/logo.png"
               alt="Complete Home"
               className="brand-logo"
-              width={44}
-              height={44}
+              width={160}
+              height={80}
               priority
             />
-            <div className="brand-text">
-              <strong>Complete Home</strong>
-              <span>Real Estate Experts</span>
-            </div>
           </Link>
           <nav className="nav-links" aria-label="Primary">
             <Link href="/#how-it-works">How it works</Link>
