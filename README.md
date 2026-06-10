@@ -172,6 +172,6 @@ Login at `/admin/login`.
 
 <div align="center">
 
-Built for **Complete Home Solutions of Tennessee** · (865) 235-1071 · chstenn@gmail.com
+Built for **Complete Home Solutions of Tennessee**
 
 </div>
