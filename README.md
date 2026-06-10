@@ -1,72 +1,91 @@
-# Complete Home — Real Estate Seller Intake Platform
+<div align="center">
 
-A private-market seller intake platform for **Complete Home Solutions of Tennessee**. Home sellers submit their property details, photos, and videos for a guided review — no listing, no open houses, no obligation.
+<img src="public/logo.png" width="180" alt="Complete Home Logo" />
 
----
+# Complete Home — Seller Intake Platform
 
-## Features
+**Private market property reviews. No listing. No open houses. No obligation.**
 
-- **Multi-step intake form** — address autocomplete, property details, room-by-room photo/video uploads, pre-qualification questions
-- **Draft & resume** — submissions auto-save as drafts; sellers can return and pick up where they left off
-- **Resumable file uploads** — tus protocol handles large photo/video uploads with retry support
-- **AI room detection** — Groq vision verifies uploaded photos match their labeled room
-- **AI property summary** — auto-generates a structured property summary for the admin panel
-- **Address intelligence** — Geoapify autocomplete + Rentcast property data pre-fill
-- **Email notifications** — admin alert and seller confirmation sent on submission via Gmail SMTP
-- **Admin dashboard** — view, filter, and manage submissions; update status; add internal notes; view uploaded media
-- **Rate limiting & RLS** — row-level security on all tables; server-side rate limiting per IP
+[![Next.js](https://img.shields.io/badge/Next.js_14-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel)](https://vercel.com)
+
+</div>
 
 ---
 
-## Tech Stack
+## What it does
 
-| Layer | Technology |
+Home sellers visit the site, fill out a guided multi-step form with their property details and room photos, and receive a private market review — no public listing required. Admins manage all incoming submissions through a protected dashboard with AI-generated summaries.
+
+---
+
+## ✦ Features
+
+| | Feature |
+|---|---|
+| 📋 | **Multi-step intake form** — address autocomplete, property details, pre-qual questions |
+| 💾 | **Draft & resume** — auto-saves progress so sellers can return anytime |
+| 📸 | **Room-by-room uploads** — resumable photo/video uploads via tus protocol |
+| 🤖 | **AI room detection** — Groq vision verifies photos match their labeled room |
+| 📝 | **AI property summary** — auto-generates a structured summary for admins |
+| 🗺️ | **Address intelligence** — Geoapify autocomplete + Rentcast property data pre-fill |
+| 📧 | **Email notifications** — admin alert + seller confirmation on submission |
+| 🔐 | **Admin dashboard** — manage submissions, update status, add notes, view media |
+| 🛡️ | **Security** — RLS on every table, server-side rate limiting per IP |
+
+---
+
+## ⚙️ Tech Stack
+
+| Layer | Tech |
 |---|---|
 | Framework | Next.js 14 (App Router) |
 | Language | TypeScript |
 | Database | Supabase (PostgreSQL) |
 | Auth | Supabase Auth |
-| Storage | Supabase Storage (`property-media` bucket) |
+| Storage | Supabase Storage |
 | AI | Groq SDK |
 | Address | Geoapify API |
 | Email | Nodemailer + Gmail SMTP |
-| File uploads | tus-js-client |
+| File Uploads | tus-js-client |
 | Validation | Zod |
 | Deployment | Vercel |
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 app/
-  page.tsx                  # Marketing landing page
-  intake/page.tsx           # Multi-step seller intake form
-  privacy/page.tsx          # Privacy policy
-  admin/
-    page.tsx                # Admin dashboard
-    login/page.tsx          # Admin login
-    request/page.tsx        # Request admin access
-  api/
-    intake/                 # Draft save, submit, file upload
-    admin/                  # Submissions, auth, admin management
-    address/                # Autocomplete, property data
-    ai/                     # Room detection, summarize
-components/                 # Header, shared UI
+├── page.tsx                    # Marketing landing page
+├── intake/page.tsx             # Multi-step seller intake form
+├── privacy/page.tsx            # Privacy policy
+├── admin/
+│   ├── page.tsx                # Admin dashboard
+│   ├── login/page.tsx          # Admin login
+│   └── request/page.tsx        # Request admin access
+└── api/
+    ├── intake/                 # Draft save, submit, file upload
+    ├── admin/                  # Submissions, auth, admin management
+    ├── address/                # Autocomplete + property data
+    └── ai/                     # Room detection, summarize
+
+components/                     # Header, shared UI
 lib/
-  supabase/                 # Client, server, admin Supabase clients
-  ai/                       # Groq integration
-  email/                    # Nodemailer email templates
-  api/                      # Shared API utilities
+├── supabase/                   # Client, server, admin Supabase instances
+├── ai/                         # Groq integration
+├── email/                      # Nodemailer templates
+└── api/                        # Shared API utilities
+
 supabase/
-  migrations/               # Database schema (run on new projects)
+└── migrations/                 # Full DB schema — run on any new project
 ```
 
 ---
 
-## Environment Variables
-
-Copy `.env.example` to `.env.local` and fill in all values:
+## 🔑 Environment Variables
 
 ```bash
 cp .env.example .env.local
@@ -77,82 +96,82 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
-| `GROQ_API_KEY` | console.groq.com → API Keys |
-| `GEOAPIFY_API_KEY` | myprojects.geoapify.com |
-| `GMAIL_USER` | Gmail address used for sending emails |
+| `GROQ_API_KEY` | [console.groq.com](https://console.groq.com) → API Keys |
+| `GEOAPIFY_API_KEY` | [myprojects.geoapify.com](https://myprojects.geoapify.com) |
+| `GMAIL_USER` | Gmail address used to send emails |
 | `GMAIL_APP_PASSWORD` | Google Account → Security → App Passwords |
 
 ---
 
-## Local Development
+## 🚀 Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-App runs at `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## Database Setup (New Project)
+## 🗄️ Database Setup (New Project)
 
-The full schema is in `supabase/migrations/`. To bootstrap a new Supabase project:
+Schema lives in `supabase/migrations/` — one command bootstraps everything.
 
 ```bash
-# 1. Install Supabase CLI (if not already)
-npm install -g supabase
-
-# 2. Log in
-supabase login
-
-# 3. Link to the new project (ref is the ID in the Supabase dashboard URL)
-supabase link --project-ref <project-ref>
-
-# 4. Push schema — creates all tables, policies, storage bucket, indexes, grants
-supabase db push
+npm install -g supabase     # install CLI
+supabase login              # authenticate
+supabase link --project-ref <your-project-ref>   # link to new project
+supabase db push            # run migrations
 ```
 
-This creates:
-- `submissions`, `submission_files`, `admin_users`, `email_log`, `address_cache`, `rate_limits`
-- All RLS policies, indexes, triggers, and functions
-- `property-media` storage bucket with correct mime type restrictions
+Creates all tables, RLS policies, indexes, triggers, functions, and the `property-media` storage bucket automatically.
+
+> **Project ref** = the ID in your Supabase dashboard URL:
+> `https://supabase.com/dashboard/project/YOUR-REF-HERE`
 
 ---
 
-## First Admin User
+## 👤 First Admin User
 
-After running migrations, add the first admin manually in Supabase:
+After migrations, create the first admin:
 
-1. Go to **Authentication → Users** → create a user with email + password
-2. Copy the user's UUID
-3. Run in **Supabase SQL Editor**:
+1. **Supabase → Authentication → Users** → create a user (email + password)
+2. Copy their UUID
+3. Run in **SQL Editor**:
 
 ```sql
 INSERT INTO admin_users (id, email, role, status)
-VALUES ('<user-uuid>', '<email>', 'admin', 'active');
+VALUES ('<uuid>', '<email>', 'admin', 'active');
 ```
 
-That user can now log in at `/admin/login`.
+Login at `/admin/login`.
 
 ---
 
-## Deployment (Vercel)
+## 🌐 Deploying to Vercel
 
 1. Push repo to GitHub
-2. Import repo in Vercel
-3. Add all environment variables in **Vercel → Project → Settings → Environment Variables**
-4. Deploy
+2. Import in [Vercel](https://vercel.com) → add all env vars
+3. Deploy
 
-> After deploying, update the Supabase project's **Site URL** and **Redirect URLs** to the production domain under **Supabase → Authentication → URL Configuration**.
+> Set your production domain in **Supabase → Authentication → URL Configuration** (Site URL + Redirect URLs).
 
 ---
 
-## Client Launch Checklist
+## ✅ Client Launch Checklist
 
 - [ ] Create new Supabase project
-- [ ] Run `supabase db push` with new project ref
-- [ ] Update all env vars (Supabase URL + keys, Groq, Geoapify, Gmail)
+- [ ] `supabase link` + `supabase db push`
+- [ ] Fill in all env vars with new project keys
 - [ ] Set Supabase Site URL to production domain
 - [ ] Create first admin user via SQL
 - [ ] Deploy to Vercel
+
+---
+
+<div align="center">
+
+Built for **Complete Home Solutions of Tennessee** · (865) 235-1071 · chstenn@gmail.com
+
+</div>
